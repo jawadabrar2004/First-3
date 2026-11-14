@@ -12,6 +12,9 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
 
+  <!-- Leaflet = the map library (search-zone maps) -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+
   <link rel="stylesheet" href="/static/style.css">
 </head>
 
@@ -33,12 +36,21 @@
   <div id="video-stage" class="video-stage">
     <div class="feed-pane" id="pane-day">
       <div class="feed-media" id="feed-day"></div>
-      <span class="cam-label">DAY CAM</span>                                 <!-- top-right corner -->
+      <!-- Machine vision view (boxes + alerts drawn in), shown OVER the raw feed so the
+           raw feed never has to reload. vision.js sets it up. -->
+      <img class="cv-stream" id="cv-stream" alt="Machine vision view of the day camera" hidden>
+      <div class="pane-tags">                                                  <!-- top-right corner -->
+        <div class="cv-toggle" id="cv-toggle" role="group" aria-label="Day camera view" hidden>
+          <button class="cv-btn" type="button" data-cv="on" aria-pressed="true">CV ON</button>
+          <button class="cv-btn" type="button" data-cv="raw" aria-pressed="false">RAW</button>
+        </div>
+        <span class="cam-label">DAY CAM</span>
+      </div>
       <div class="cam-message" id="msg-day" role="status" hidden></div>      <!-- connecting / offline -->
     </div>
     <div class="feed-pane" id="pane-ir">
       <div class="feed-media" id="feed-ir"></div>
-      <span class="cam-label">IR CAM</span>
+      <div class="pane-tags"><span class="cam-label">IR CAM</span></div>
       <div class="cam-message" id="msg-ir" role="status" hidden></div>
     </div>
   </div>
@@ -75,6 +87,9 @@
     <button class="btn btn-small" id="reset-btn" type="button" title="Start a new mock call">Restart demo</button>
   </div>
 </header>
+
+<!-- Shown for a few seconds when the drone enters the search zone -->
+<div class="zone-banner" id="zone-banner" role="alert" hidden>ENTERING SEARCH ZONE - CAMERAS ACTIVE</div>
 
 <!-- ================= 1. INCOMING CALL ================= -->
 <section class="screen screen-incoming" aria-label="Incoming call">
@@ -138,12 +153,20 @@
 
 <!-- ================= 3. EN ROUTE (over the blurred camera) ================= -->
 <section class="screen screen-enroute" aria-label="Drone en route">
-  <div class="eta-box">
-    <p class="eta-title" id="eta-title">Drone en route</p>
-    <p class="label">ETA</p>
-    <p class="eta-value mono" id="eta-value">0:10</p>
-    <div class="eta-bar"><div class="eta-bar-fill" id="eta-bar"></div></div>
-    <p class="eta-address" id="eta-address"></p>
+  <div class="eta-layout">
+    <div class="eta-box">
+      <p class="eta-title" id="eta-title">Drone en route</p>
+      <p class="label">ETA to search zone</p>
+      <p class="eta-value mono" id="eta-value">0:10</p>
+      <div class="eta-bar"><div class="eta-bar-fill" id="eta-bar"></div></div>
+      <p class="eta-address" id="eta-address"></p>
+    </div>
+
+    <!-- Minimap (map.js): caller's reported position, search zone, drone, base, flight path -->
+    <div class="minimap-card">
+      <div class="minimap" id="eta-map"></div>
+      <p class="minimap-distance">Distance to zone: <b class="mono" id="zone-distance">--</b></p>
+    </div>
   </div>
 </section>
 
@@ -182,6 +205,27 @@
       <span class="video-source" id="video-source"></span>
     </details>
 
+    <details class="dropdown" id="map-dropdown" open>
+      <summary>
+        <span class="label">Map</span>
+        <span class="summary-value mono" id="map-mini"></span>
+        <span class="summary-action"></span>
+      </summary>
+      <div class="scene-map" id="scene-map"></div>   <!-- map.js -->
+    </details>
+
+    <!-- Machine vision alerts (vision.js). Opens by itself when a new one arrives. -->
+    <details class="dropdown" id="alerts-dropdown">
+      <summary>
+        <span class="label">Alerts</span>
+        <span class="alert-count mono" id="alert-count" hidden>0</span>
+        <span class="summary-action"></span>
+      </summary>
+      <ol class="alert-feed" id="alert-feed">
+        <li class="alert-empty">No alerts yet</li>
+      </ol>
+    </details>
+
     <details class="dropdown" id="feed-dropdown">
       <summary>
         <span class="label">Live call &amp; status</span>
@@ -198,6 +242,14 @@
       <span class="feed-tag"><span class="rec-dot"></span>Feed 1</span>
       <span class="bar-address" id="scene-address"></span>
       <span class="feed-phase" id="scene-phase" hidden></span>
+    </div>
+
+    <!-- Machine vision: people in view + alerts active right now (vision.js) -->
+    <div class="bar-scene" title="Machine vision (day camera)">
+      <span class="label">Scene</span>
+      <span class="scene-people mono" id="scene-people">-</span><span class="scene-unit">people</span>
+      <span class="scene-badges" id="scene-badges"></span>
+      <span class="scene-state" id="scene-state">CV off</span>
     </div>
 
     <div class="bar-payload">
@@ -231,12 +283,23 @@
   </div>
 </section>
 
-<!-- Our scripts. config.js must load first. -->
+<!-- Enlarged incident screenshot (vision.js). Click anywhere to close. -->
+<div class="lightbox" id="lightbox" hidden>
+  <figure>
+    <img id="lightbox-img" alt="">
+    <figcaption id="lightbox-caption"></figcaption>
+  </figure>
+</div>
+
+<!-- Leaflet library, then our scripts. config.js must load first. -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="/static/config.js"></script>
 <script src="/static/video.js"></script>
 <script src="/static/camera.js"></script>
 <script src="/static/telemetry.js"></script>
 <script src="/static/controls.js"></script>
+<script src="/static/map.js"></script>
+<script src="/static/vision.js"></script>
 <script src="/static/app.js"></script>
 </body>
 </html>

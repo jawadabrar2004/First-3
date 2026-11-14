@@ -2,7 +2,10 @@
 // camera.js - the Raspberry Pi cameras, shown side by side:
 //             Day on the left, IR on the right.
 //
-//   * VIDEO_MODE "pi":   each pane shows one MediaMTX player page in an
+//   * VIDEO_MODE "pi":   the feeds only load once the drone is in the search
+//                        zone (telemetry.cameras_active; app.js calls
+//                        setCamerasActive). Before that the blurred placeholder shows.
+//                        Each pane shows one MediaMTX player page in an
 //                        <iframe>. Each iframe is created ONCE and then left
 //                        alone: removing or re-creating it restarts the video.
 //                        Every 5 s we ask the server whether the Pi is
@@ -27,6 +30,7 @@ const OFFLINE_AFTER_FAILS = 3;     // failed checks in a row before we call it o
 let camState = "unknown";          // "unknown" | "online" | "unsure" | "offline"
 let failedChecks = 0;              // failed checks in a row (reset on success)
 let warnedHostMismatch = false;
+let camerasWanted = false;         // true once the drone has entered the search zone
 const loadedFrames = {};           // feed -> its <iframe>, while loaded
 const connectTimers = {};          // feed -> timer that hides "connecting"
 const cameraStats = { created: { day: 0, ir: 0 }, loadEvents: { day: 0, ir: 0 }, removed: { day: 0, ir: 0 } };
@@ -129,7 +133,8 @@ async function checkCamera() {
     if (camState !== "online") camLog("state", camState, "-> online");
     camState = "online";
     setCamStatus("online", "Pi cameras online at " + where);
-    if (wasOffline) FEEDS.forEach(loadPiStream); // only on an offline -> online change
+    // Only on an offline -> online change, and only once the drone is in the zone
+    if (wasOffline && camerasWanted) FEEDS.forEach(loadPiStream);
     return;
   }
 
@@ -156,6 +161,22 @@ async function checkCamera() {
 async function cameraCheckLoop() {
   await checkCamera();
   setTimeout(cameraCheckLoop, CAM_CHECK_EVERY_MS);
+}
+
+// ---------------------------------------------------------------------
+// Search zone gate. app.js calls this with telemetry.cameras_active on every
+// update; only a change does anything, so the feeds load exactly once.
+// ---------------------------------------------------------------------
+function setCamerasActive(active) {
+  if (VIDEO_MODE !== "pi" || active === camerasWanted) return;
+  camerasWanted = active;
+  camLog("cameras", active ? "ACTIVE (drone in search zone)" : "off (new mission)");
+  if (active) {
+    if (camState === "online" || camState === "unsure") FEEDS.forEach(loadPiStream);
+    // otherwise the next successful status check loads them
+  } else {
+    FEEDS.forEach((feed) => { unloadPiStream(feed); hideCamMessage(feed); });
+  }
 }
 
 // Dot in the header: green = online, yellow = not sure, red = offline, grey = mock / not checked yet
@@ -208,7 +229,6 @@ document.addEventListener("keydown", (e) => {
 // ---------------------------------------------------------------------
 if (VIDEO_MODE === "pi") {
   setVideoLabel("DAY + IR · " + PI_HOST); // video.js: shown in the Telemetry box
-  FEEDS.forEach((feed) => showCamMessage(feed, "connecting", "Connecting to " + CAM_NAMES[feed] + "…"));
   camLog("pi mode, PI_HOST =", PI_HOST);
   cameraCheckLoop();
 } else {

@@ -4,8 +4,9 @@
 //
 //   incoming -> call is ringing (Answer button)
 //   call     -> on the call: transcript, address box, drone choices
-//   enroute  -> blurred camera with the ETA countdown
-//   onscene  -> Feed 1 camera in the middle, telemetry/feed/controls on the sides
+//   enroute  -> blurred camera, ETA countdown to the search zone + minimap
+//   onscene  -> the cameras (from the moment the drone enters the search zone),
+//               drop-downs on the left edge, controls in the bottom bar
 //
 // The server sends JSON messages over a WebSocket (/ws). Each message has
 // a "type", and handleMessage() sends it to the right function below.
@@ -14,6 +15,7 @@
 
 let socket = null;
 let call = { answered: false, caller_number: null, address: null }; // latest call info
+let lastCamerasActive = null; // to notice the moment the drone enters the search zone
 
 function connect() {
   // ws:// for http pages, wss:// for https pages
@@ -35,11 +37,16 @@ function handleMessage(msg) {
     document.querySelectorAll(".transcript").forEach((list) => { list.innerHTML = ""; });
     msg.transcript.forEach(addTranscriptLine);
     showCallInfo();
+    setupZoneMaps(msg.mission);      // map.js
+    setIncidents(msg.incidents);     // vision.js
+    lastCamerasActive = null;        // don't show the zone banner just for loading the page
     onTelemetry(msg.telemetry, msg.mission_seconds);
   } else if (msg.type === "telemetry") {
     onTelemetry(msg.data, msg.mission_seconds);
   } else if (msg.type === "transcript") {
     addTranscriptLine(msg.line);
+  } else if (msg.type === "incident") {
+    onIncident(msg.incident);        // vision.js: new machine vision alert, or a decision on one
   }
 }
 
@@ -48,8 +55,22 @@ function onTelemetry(t, missionSeconds) {
   document.getElementById("mission-timer").textContent = formatTime(missionSeconds);
   setView(pickView(t), t);
   updateEta(t);
-  updateTelemetry(t); // telemetry.js
-  updateControls(t);  // controls.js
+  updateTelemetry(t);              // telemetry.js
+  updateControls(t);               // controls.js
+  updateZoneMaps(t);               // map.js
+  setCamerasActive(t.cameras_active); // camera.js: Pi feeds load once, in the zone
+  updateVision(t);                 // vision.js
+  if (lastCamerasActive === false && t.cameras_active) showZoneBanner();
+  lastCamerasActive = t.cameras_active;
+}
+
+// "ENTERING SEARCH ZONE - CAMERAS ACTIVE", for a few seconds
+let zoneBannerTimer = null;
+function showZoneBanner() {
+  const banner = document.getElementById("zone-banner");
+  banner.hidden = false;
+  clearTimeout(zoneBannerTimer);
+  zoneBannerTimer = setTimeout(() => { banner.hidden = true; }, 4000);
 }
 
 // ---------------------------------------------------------------------
@@ -59,7 +80,7 @@ function pickView(t) {
   if (!call.answered) return "incoming";
   if (t.phase === "STANDBY") return "call";
   if (t.phase === "EN_ROUTE") return "enroute";
-  return "onscene"; // on scene, returning, landing, landed
+  return "onscene"; // searching the zone, on scene, returning, landing, landed
 }
 
 const STATUS_TEXT = {
@@ -82,6 +103,7 @@ function setView(view, t) {
   phase.textContent = t.phase_label;
 
   if (changed && view === "call") document.getElementById("address").focus();
+  if (changed) setTimeout(refreshZoneMaps, 50); // map.js: maps that just became visible re-measure
 }
 
 // ---------------------------------------------------------------------
@@ -105,10 +127,12 @@ function showCallInfo() {
 }
 
 // ---------------------------------------------------------------------
-// Screen 3: ETA countdown over the blurred camera
+// Screen 3: ETA countdown (to the search zone) over the blurred camera
 // ---------------------------------------------------------------------
 function updateEta(t) {
   if (t.payload_name) document.getElementById("eta-title").textContent = t.payload_name + " drone en route";
+  document.getElementById("zone-distance").textContent =
+    t.in_search_zone ? "inside the zone" : t.distance_to_zone + " m";
   if (t.phase !== "EN_ROUTE" || t.eta_seconds == null) return;
   document.getElementById("eta-value").textContent = formatTime(Math.ceil(t.eta_seconds), true);
   const done = 1 - t.eta_seconds / t.eta_total;

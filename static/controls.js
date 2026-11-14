@@ -247,7 +247,7 @@ function updateControls(t) {
   // Kept short on purpose: the pill already says ARMED / DROPPING / DROPPED
   setHint(dropHint, t.payload === "dropping" ? "Lowering…" : "");
 
-  const flying = ["EN_ROUTE", "ON_SCENE"].includes(t.phase);
+  const flying = ["EN_ROUTE", "SEARCHING", "ON_SCENE"].includes(t.phase);
   rthBtn.disabled = !flying;
   if (t.phase === "RETURNING" || t.phase === "LANDING") rthText.textContent = "Returning to base…";
   else if (t.phase === "LANDED") rthText.textContent = "Landed at base";

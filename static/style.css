@@ -124,14 +124,24 @@ body[data-view="onscene"] .video-stage video,body[data-view="onscene"] .video-st
   background:var(--panel);border:1px solid rgba(251,191,36,.45);border-radius:var(--radius)}
 /* Pi camera extras (camera.js). Only shown on the on-scene screen,
    so they never fight with the ETA countdown. */
-.cam-label{position:absolute;top:.75rem;right:.75rem;padding:.15rem .55rem;border-radius:.3rem;background:var(--glass);
+.pane-tags{position:absolute;top:.75rem;right:.75rem;display:flex;align-items:center;gap:.4rem;z-index:2}
+.cam-label{padding:.15rem .55rem;border-radius:.3rem;background:var(--glass);
   font-size:.7rem;font-weight:700;letter-spacing:.1em;color:var(--text)}
+/* CV ON / RAW switch (vision.js) */
+.cv-toggle{display:inline-flex;border:1px solid var(--line-strong);border-radius:999px;overflow:hidden;background:var(--glass)}
+.cv-toggle[hidden]{display:none}
+.cv-btn{font:inherit;font-size:.65rem;font-weight:700;letter-spacing:.06em;padding:.15rem .55rem;cursor:pointer;
+  color:var(--muted);background:transparent;border:0}
+.cv-btn[aria-pressed="true"]{color:var(--accent-ink);background:var(--accent)}
+/* Machine vision view, laid over the raw Day feed (which keeps running underneath) */
+.cv-stream{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:#000;z-index:1}
 .cam-message{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);max-width:calc(100% - 2rem);padding:1rem 1.4rem;text-align:center;
   border-radius:var(--radius);background:var(--panel);border:1px solid var(--line-strong);font-weight:700}
 .cam-message-connecting{color:var(--muted)}
 .cam-message-offline{color:var(--critical);border-color:rgba(248,113,113,.5);letter-spacing:.04em}
-body:not([data-view="onscene"]) .cam-label,
+body:not([data-view="onscene"]) .pane-tags,
 body:not([data-view="onscene"]) .cam-message{display:none}
+.cam-message{z-index:2}
 /* Mock mode: the IR pane shows the webcam in grey */
 .video-layer.mock-mode #feed-ir video,.video-layer.mock-mode #feed-ir img{filter:grayscale(1) contrast(1.15)}
 
@@ -174,7 +184,8 @@ body[data-view="enroute"] .video-stage{filter:blur(22px) brightness(.45) saturat
 .drone-go{color:var(--accent);font-weight:700;font-size:.85rem;letter-spacing:.06em;text-transform:uppercase}
 
 /* 7. En route: ETA in the middle of the blurred camera */
-.eta-box{height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:.3rem;
+.eta-layout{height:100%;display:flex;align-items:center;justify-content:center;gap:4rem;padding:1.5rem}
+.eta-box{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:.3rem;
   text-shadow:0 2px 12px rgba(0,0,0,.6)}
 .eta-title{margin:0 0 1rem;font-size:1.6rem;font-weight:700;color:var(--accent)}
 .eta-box .label{font-size:1rem;color:var(--text)}
@@ -182,6 +193,12 @@ body[data-view="enroute"] .video-stage{filter:blur(22px) brightness(.45) saturat
 .eta-bar{width:min(36rem,80vw);height:.5rem;margin-top:1.5rem;border-radius:999px;background:rgba(148,163,184,.25);overflow:hidden}
 .eta-bar-fill{height:100%;width:0;background:var(--accent);transition:width .25s linear}
 .eta-address{margin:1rem 0 0;font-size:1.2rem;color:var(--text)}
+/* Minimap next to the countdown (map.js) */
+.minimap-card{width:min(30rem,40vw);background:var(--glass);border:1px solid var(--line-strong);border-radius:var(--radius);
+  padding:.5rem;backdrop-filter:blur(6px)}
+.minimap{height:min(22rem,50vh);border-radius:calc(var(--radius) - 2px);overflow:hidden}
+.minimap-distance{margin:.5rem .25rem .1rem;font-size:1rem;color:var(--muted)}
+.minimap-distance b{color:var(--warning);font-size:1.15rem}
 
 /* 8. On scene: keep the camera as clear as possible.
    Only two small drop-down boxes sit on it, on the left edge. */
@@ -190,9 +207,9 @@ body[data-view="enroute"] .video-stage{filter:blur(22px) brightness(.45) saturat
 
 /* Drop-down boxes (top-left corner of the camera) */
 .dropdowns{position:absolute;top:.75rem;left:.75rem;width:var(--dropdown-w);display:flex;flex-direction:column;gap:.5rem;
-  max-height:calc(100% - var(--bottombar) - 1.5rem)}
+  max-height:calc(100% - var(--bottombar) - 1.5rem);overflow-y:auto;scrollbar-width:thin}
 .dropdown{background:var(--glass);border:1px solid var(--line-strong);border-radius:var(--radius);backdrop-filter:blur(6px);
-  display:flex;flex-direction:column;min-height:0;overflow:hidden}
+  display:flex;flex-direction:column;flex:none;overflow:hidden}
 .dropdown summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:.5rem;padding:.4rem .7rem;user-select:none}
 .dropdown summary::-webkit-details-marker{display:none}
 /* Little arrow that turns when the box opens */
@@ -210,8 +227,34 @@ body[data-view="enroute"] .video-stage{filter:blur(22px) brightness(.45) saturat
 .dropdown summary:hover .summary-action{text-decoration:underline}
 .new-dot{margin-left:auto;width:.5rem;height:.5rem;border-radius:50%;background:var(--accent);visibility:hidden}
 .dropdown.has-new .new-dot{visibility:visible}
-#feed-dropdown[open]{flex:1}                   /* the feed can grow; it scrolls inside */
-#feed-dropdown .transcript{font-size:.85rem;max-height:45vh}
+#feed-dropdown .transcript{font-size:.85rem;max-height:35vh}
+
+/* Map drop-down (map.js) */
+.scene-map{height:11rem}
+
+/* Alerts drop-down (vision.js) */
+.alert-count{margin-left:auto;min-width:1.3rem;padding:0 .35rem;border-radius:999px;background:var(--critical);color:var(--accent-ink);
+  font-size:.7rem;font-weight:700;text-align:center}
+.alert-count[hidden]{display:none}
+.alert-count:not([hidden]) + .summary-action{margin-left:.4rem}
+.alert-feed{list-style:none;margin:0;padding:.3rem .5rem;max-height:30vh;overflow-y:auto;overflow-x:hidden}
+.alert-empty{color:var(--faint);font-size:.8rem;padding:.3rem .2rem}
+.alert-item{display:grid;grid-template-columns:4.2rem 1fr;gap:.55rem;padding:.4rem .2rem;border-bottom:1px solid var(--line)}
+.alert-item:last-child{border-bottom:0}
+.alert-thumb{width:4.2rem;height:3.2rem;object-fit:cover;border-radius:.3rem;cursor:zoom-in;background:#000}
+.alert-body{display:flex;flex-direction:column;gap:.2rem;min-width:0}
+.alert-head{display:flex;align-items:center;justify-content:space-between;gap:.4rem}
+.alert-time{font-size:.7rem;color:var(--faint)}
+.alert-info{font-size:.72rem;color:var(--muted)}
+.alert-actions{display:flex;flex-wrap:wrap;align-items:center;gap:.35rem}
+.alert-actions .btn{padding:.15rem .5rem;font-size:.7rem}
+.alert-decision{font-size:.65rem;font-weight:700;letter-spacing:.06em}
+.alert-item.is-confirmed .alert-decision{color:var(--critical)}
+.alert-item.is-dismissed{opacity:.55}
+.alert-item.is-dismissed .alert-decision{color:var(--muted)}
+.alert-badge{display:inline-block;padding:.05rem .45rem;border-radius:999px;font-size:.68rem;font-weight:700;white-space:nowrap;
+  color:var(--critical);background:var(--critical-tint);border:1px solid rgba(248,113,113,.45)}
+.alert-badge.alert-waving,.alert-badge.alert-choking{color:var(--warning);background:var(--warning-tint);border-color:rgba(251,191,36,.45)}
 
 /* Telemetry inside its drop-down: 2-column grid of small tiles */
 .tele-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1px;background:var(--line)}
@@ -238,6 +281,11 @@ body[data-view="enroute"] .video-stage{filter:blur(22px) brightness(.45) saturat
 .bar-address{color:var(--muted);font-size:.85rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .feed-phase{color:var(--warning);font-size:.8rem;font-weight:700;white-space:nowrap}
 .bar-payload,.bar-talk{display:flex;align-items:center;gap:.6rem;white-space:nowrap}
+.bar-scene{display:flex;align-items:center;gap:.45rem;white-space:nowrap}
+.scene-people{font-size:1.4rem;font-weight:700;line-height:1}
+.scene-unit{font-size:.75rem;color:var(--muted)}
+.scene-badges{display:inline-flex;gap:.3rem}
+.scene-state{font-size:.75rem;color:var(--faint)}
 .payload-name{font-weight:700}
 .confirm{display:inline-flex;gap:.4rem}
 .bottom-bar .hint{margin:0;font-size:.75rem}
@@ -254,6 +302,33 @@ body[data-view="enroute"] .video-stage{filter:blur(22px) brightness(.45) saturat
 /* Return to base lives in the header, only on the on-scene screen */
 .rth-top{display:none}
 body[data-view="onscene"] .rth-top{display:inline-flex}
+
+/* Search zone banner (app.js), over everything for a few seconds */
+.zone-banner{position:fixed;top:calc(var(--topbar) + 1rem);left:50%;transform:translateX(-50%);z-index:30;
+  padding:.6rem 1.4rem;border-radius:var(--radius);background:var(--warning);color:var(--accent-ink);
+  font-weight:800;letter-spacing:.08em;box-shadow:var(--shadow, 0 10px 30px rgba(2,6,23,.45))}
+.zone-banner[hidden]{display:none}
+
+/* Enlarged incident screenshot (vision.js) */
+.lightbox{position:fixed;inset:0;z-index:40;display:flex;align-items:center;justify-content:center;background:rgba(2,6,23,.85);cursor:zoom-out}
+.lightbox[hidden]{display:none}
+.lightbox figure{margin:0;max-width:90vw;text-align:center}
+.lightbox img{max-width:90vw;max-height:80vh;border-radius:var(--radius)}
+.lightbox figcaption{margin-top:.5rem;color:var(--text);font-weight:600}
+
+/* Leaflet maps (map.js): light OpenStreetMap tiles made dark */
+.leaflet-container{font-family:var(--font);background:var(--panel-2)}
+.leaflet-tile-pane{filter:invert(1) hue-rotate(180deg) brightness(.9) contrast(.9) saturate(.6)}
+.map-drone svg{width:100%;height:100%;fill:var(--accent);stroke:var(--bg);stroke-width:1.5;filter:drop-shadow(0 0 2px rgba(0,0,0,.8))}
+.map-pin-caller svg{width:100%;height:100%;fill:var(--critical);stroke:var(--bg);stroke-width:1.5}
+.map-pin-caller svg circle{fill:var(--bg)}
+.map-pin-home{background:var(--muted);border:2px solid var(--bg);border-radius:2px}
+.map-pin-alert{display:flex;align-items:center;justify-content:center;border-radius:50%;background:var(--critical);
+  color:var(--accent-ink);font-weight:800;font-size:.75rem;border:2px solid var(--bg)}
+.leaflet-tooltip.map-label{background:var(--glass);color:var(--text);border:1px solid var(--line-strong);box-shadow:none;
+  font-size:.7rem;font-weight:700;padding:.05rem .4rem}
+.leaflet-tooltip.map-label::before{display:none}
+.leaflet-tooltip.map-label-alert{color:var(--critical)}
 
 /* 9. Transcript (used on the call screen and in the on-scene feed) */
 .transcript{list-style:none;margin:0;padding:.5rem .9rem;overflow-y:auto;flex:1;min-height:0}
@@ -278,5 +353,8 @@ body[data-view="onscene"] .rth-top{display:inline-flex}
   :root{--bottombar:7.5rem}
   .bottom-bar{flex-wrap:wrap;align-content:center;gap:.5rem 1rem;padding:.5rem .8rem}
   .bar-feed{flex-basis:100%}
+  .eta-layout{flex-direction:column;gap:1.5rem;overflow-y:auto}
+  .eta-value{font-size:6rem}
+  .minimap-card{width:min(30rem,92vw)}
   .video-stage{flex-direction:column}   /* narrow: Day on top, IR below */
 }

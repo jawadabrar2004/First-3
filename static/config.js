@@ -35,6 +35,15 @@ const PI_STREAMS = {
 const PI_PLAYER_PARAMS = "?controls=false&muted=true&autoplay=true&playsinline=true";
 
 // ---------------------------------------------------------------------
+// Machine vision (machine_vision/monitor.py). main.py starts it on this
+// computer when the drone enters the search zone; the page reads its live
+// view and status from here. Change the host only if monitor.py runs on
+// another computer.
+// ---------------------------------------------------------------------
+const VISION_HOST = "localhost";
+const VISION_PORT = 8100;   // http://localhost:8100/stream.mjpg and /status.json
+
+// ---------------------------------------------------------------------
 // 3. Mock mode video (used when VIDEO_MODE = "mock")
 //
 //   "webcam" - the laptop's own camera, used as a pretend drone camera.
