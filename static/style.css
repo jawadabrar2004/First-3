@@ -110,7 +110,10 @@ body[data-view="onscene"] .screen-onscene{display:block}
 .video-layer{position:fixed;top:0;left:0;right:0;bottom:0;background:#000;overflow:hidden;
   transition:top .5s,left .5s,right .5s,bottom .5s}
 body[data-view="onscene"] .video-layer{top:var(--topbar);bottom:var(--bottombar);left:0;right:0}
-.video-stage{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;transition:filter .6s,transform .6s}
+.video-stage{position:absolute;inset:0;display:flex;gap:2px;background:var(--bg);transition:filter .6s,transform .6s}
+/* Two feeds side by side: Day (left) and IR (right), equal widths */
+.feed-pane{position:relative;flex:1;min-width:0;background:#000;overflow:hidden}
+.feed-media{position:absolute;inset:0;display:flex;align-items:center;justify-content:center}
 .video-stage video,.video-stage img{width:100%;height:100%;object-fit:cover;display:block}
 /* On scene show the whole picture (no cropping) */
 body[data-view="onscene"] .video-stage video,body[data-view="onscene"] .video-stage img{object-fit:contain}
@@ -122,14 +125,14 @@ body[data-view="onscene"] .video-stage video,body[data-view="onscene"] .video-st
    so they never fight with the ETA countdown. */
 .cam-label{position:absolute;top:.75rem;right:.75rem;padding:.15rem .55rem;border-radius:.3rem;background:var(--glass);
   font-size:.7rem;font-weight:700;letter-spacing:.1em;color:var(--text)}
-.cam-message{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);max-width:30rem;padding:1rem 1.4rem;text-align:center;
+.cam-message{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);max-width:calc(100% - 2rem);padding:1rem 1.4rem;text-align:center;
   border-radius:var(--radius);background:var(--panel);border:1px solid var(--line-strong);font-weight:700}
 .cam-message-connecting{color:var(--muted)}
 .cam-message-offline{color:var(--critical);border-color:rgba(248,113,113,.5);letter-spacing:.04em}
 body:not([data-view="onscene"]) .cam-label,
 body:not([data-view="onscene"]) .cam-message{display:none}
-/* Mock mode: the IR switch turns the webcam grey */
-.video-layer.ir-mode .video-stage video{filter:grayscale(1) contrast(1.15)}
+/* Mock mode: the IR pane shows the webcam in grey */
+.video-layer.mock-mode #feed-ir video,.video-layer.mock-mode #feed-ir img{filter:grayscale(1) contrast(1.15)}
 
 /* En route: blurry, dark camera image behind the ETA */
 body[data-view="enroute"] .video-stage{filter:blur(22px) brightness(.45) saturate(.7);transform:scale(1.08)}
@@ -197,6 +200,13 @@ body[data-view="enroute"] .video-stage{filter:blur(22px) brightness(.45) saturat
 .dropdown[open] summary::before{transform:rotate(45deg)}
 .dropdown[open] summary{border-bottom:1px solid var(--line)}
 .summary-value{margin-left:auto;font-size:.8rem;font-weight:600}
+.dropdown[open] .summary-value{display:none}   /* battery % only while folded */
+.dropdown[open] .summary-action{margin-left:auto}
+/* "Hide" / "Show" on each drop-down's title bar, so it's obvious it folds */
+.summary-action{font-size:.65rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--accent)}
+.summary-action::after{content:"Show"}
+.dropdown[open] .summary-action::after{content:"Hide"}
+.dropdown summary:hover .summary-action{text-decoration:underline}
 .new-dot{margin-left:auto;width:.5rem;height:.5rem;border-radius:50%;background:var(--accent);visibility:hidden}
 .dropdown.has-new .new-dot{visibility:visible}
 #feed-dropdown[open]{flex:1}                   /* the feed can grow; it scrolls inside */
@@ -222,11 +232,6 @@ body[data-view="enroute"] .video-stage{filter:blur(22px) brightness(.45) saturat
 /* Bottom bar: under the camera, small controls */
 .bottom-bar{position:absolute;left:0;right:0;bottom:0;height:var(--bottombar);display:flex;align-items:center;gap:1.5rem;
   padding:0 1.25rem;background:var(--panel);border-top:1px solid var(--line)}
-/* Day / IR switch in the bottom bar */
-.cam-toggle{display:inline-flex;border:1px solid var(--line-strong);border-radius:999px;overflow:hidden}
-.cam-btn{font:inherit;font-size:.7rem;font-weight:700;letter-spacing:.06em;padding:.2rem .65rem;cursor:pointer;
-  color:var(--muted);background:transparent;border:0}
-.cam-btn[aria-pressed="true"]{color:var(--accent-ink);background:var(--accent)}
 .bar-feed{display:flex;align-items:center;gap:.7rem;min-width:0;flex:1}
 .feed-tag{font-size:.75rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;white-space:nowrap}
 .bar-address{color:var(--muted);font-size:.85rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -266,4 +271,5 @@ body[data-view="onscene"] .rth-top{display:inline-flex}
   :root{--bottombar:7.5rem}
   .bottom-bar{flex-wrap:wrap;align-content:center;gap:.5rem 1rem;padding:.5rem .8rem}
   .bar-feed{flex-basis:100%}
+  .video-stage{flex-direction:column}   /* narrow: Day on top, IR below */
 }

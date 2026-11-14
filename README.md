@@ -14,7 +14,7 @@ A full-screen 911 dispatcher console for a big wall display. It walks the dispat
 1. **Incoming call:** press **Answer**.
 2. **On the call:** the live transcript fills the screen. Type the address in the box below it, then pick the drone to send: **EpiPen**, **AED** or **Bleeding control kit**. The drone launches immediately.
 3. **En route:** the camera shows blurred behind a big **ETA** countdown (10 seconds for the demo).
-4. **On scene:** the camera fills the screen as **Feed 1** with almost nothing on it: just two small drop-down boxes on its left edge, **Telemetry** and **Live call & status**, Telemetry starts open and Live call & status starts closed (click either to open or close it). **Drop payload** and **Hold to talk** are in a thin bar under the camera, and **Return to base** is in the header next to LIVE.
+4. **On scene:** the camera fills the screen as **Feed 1** with almost nothing on it: just two small drop-down boxes on its left edge, **Telemetry** and **Live call & status**, Telemetry starts open and Live call & status starts closed. Click a box's title bar (**Hide** / **Show**) to fold or unfold it, or press **T** for Telemetry. **Drop payload** and **Hold to talk** are in a thin bar under the camera, and **Return to base** is in the header next to LIVE.
 
 Everything is mocked: the scripted caller is one of three emergencies (allergic reaction, cardiac arrest, severe bleeding), picked at random for each call. Your laptop webcam stands in for the drone camera.
 
@@ -65,13 +65,13 @@ Open **http://localhost:8000**. Allow microphone access (and camera access in mo
 
 The video panel shows the Pi 5's live cameras, streamed by MediaMTX. Setting up the Pi itself is covered in [pi/README.md](pi/README.md).
 
-On the on-scene screen, switch between **Day** and **IR** with the switch in the bottom bar or the **I** key. The current camera shows as **DAY CAM** / **IR CAM** in the top-right corner of the video, and the console remembers your last choice. The **CAM** dot in the header is green when the Pi is reachable and red when it isn't. While the Pi is unreachable, the video shows **CAMERA OFFLINE - check Pi / Wi-Fi**, and it reconnects on its own when the Pi comes back (checked every 5 s).
+On the on-scene screen both cameras show **side by side**: **DAY CAM** on the left, **IR CAM** on the right (each labeled in its top-right corner). The **CAM** dot in the header is green when the Pi is reachable and red when it isn't. While the Pi is unreachable, both panes show **CAMERA OFFLINE - check Pi / Wi-Fi**, and it reconnects on its own when the Pi comes back (checked every 5 s).
 
 **Pi or mock video:** in `static/config.js`, set
 
 ```js
 const VIDEO_MODE = "pi";    // live Pi cameras
-const VIDEO_MODE = "mock";  // no Pi: laptop webcam (the IR switch turns it grey)
+const VIDEO_MODE = "mock";  // no Pi: laptop webcam in both panes (the IR pane in grey)
 ```
 
 then reload the page.
@@ -113,7 +113,7 @@ browser  <── video: iframe straight from MediaMTX on the Pi (http://PI_HOST:
     static/index.html    The console page (all 4 screens)
     static/style.css     Console styles (Midnight Command theme, scales up on big screens)
     static/config.js     VIDEO_MODE (pi / mock), PI_HOST and stream URLs, mock VIDEO_SOURCE
-    static/camera.js     Pi cameras: Day/IR switch, I key, connecting/offline messages, CAM status dot
+    static/camera.js     Pi cameras side by side (Day + IR), connecting/offline messages, CAM status dot, T key
     static/app.js        WebSocket connection, picks the screen, ETA countdown, transcript
     static/video.js      Builds the video element for each VIDEO_SOURCE type
     static/telemetry.js  Telemetry drop-down on the on-scene screen

@@ -26,11 +26,22 @@
 
 <!-- The drone camera. Full screen and blurred while en route; once on
      scene it fills the space between the header and the bottom bar.
-     camera.js fills it with the Pi stream (or video.js with the webcam). -->
+     Two feeds side by side: Day on the left, IR on the right.
+     camera.js fills them with the Pi streams (in mock mode video.js puts
+     the webcam in the Day pane and camera.js copies it into the IR pane). -->
 <div class="video-layer">
-  <div id="video-stage" class="video-stage"></div>
-  <span class="cam-label" id="cam-label">DAY CAM</span>                  <!-- top-right corner -->
-  <div class="cam-message" id="cam-message" role="status" hidden></div>  <!-- connecting / offline -->
+  <div id="video-stage" class="video-stage">
+    <div class="feed-pane" id="pane-day">
+      <div class="feed-media" id="feed-day"></div>
+      <span class="cam-label">DAY CAM</span>                                 <!-- top-right corner -->
+      <div class="cam-message" id="msg-day" role="status" hidden></div>      <!-- connecting / offline -->
+    </div>
+    <div class="feed-pane" id="pane-ir">
+      <div class="feed-media" id="feed-ir"></div>
+      <span class="cam-label">IR CAM</span>
+      <div class="cam-message" id="msg-ir" role="status" hidden></div>
+    </div>
+  </div>
 </div>
 
 <!-- ================= HEADER (all screens) ================= -->
@@ -150,6 +161,7 @@
       <summary>
         <span class="label">Telemetry</span>
         <span class="summary-value mono"><span id="t-battery-mini">--</span>%</span>
+        <span class="summary-action" title="Keyboard: T"></span>  <!-- "Hide" / "Show", from style.css -->
       </summary>
       <div class="tele-list">
         <div class="tele-row">
@@ -174,6 +186,7 @@
       <summary>
         <span class="label">Live call &amp; status</span>
         <span class="new-dot" aria-label="New updates"></span>
+        <span class="summary-action"></span>
       </summary>
       <ol class="transcript" aria-live="polite"></ol>
     </details>
@@ -183,11 +196,6 @@
   <div class="bottom-bar">
     <div class="bar-feed">
       <span class="feed-tag"><span class="rec-dot"></span>Feed 1</span>
-      <!-- Day / IR camera switch (camera.js). Keyboard: I -->
-      <div class="cam-toggle" role="group" aria-label="Camera" title="Switch camera (I)">
-        <button class="cam-btn" type="button" data-cam="day" aria-pressed="true">Day</button>
-        <button class="cam-btn" type="button" data-cam="ir" aria-pressed="false">IR</button>
-      </div>
       <span class="bar-address" id="scene-address"></span>
       <span class="feed-phase" id="scene-phase" hidden></span>
     </div>

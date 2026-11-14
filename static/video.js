@@ -1,6 +1,7 @@
 // =====================================================================
-// video.js - shows the drone camera behind the console.
-// Reads VIDEO_SOURCE from config.js and builds the right HTML element.
+// video.js - mock mode video (VIDEO_MODE = "mock" in config.js).
+// Reads VIDEO_SOURCE from config.js and builds the right HTML element in
+// the Day pane. camera.js mirrors it into the IR pane (in grey).
 // =====================================================================
 
 const TYPE_NAMES = {
@@ -11,7 +12,7 @@ const TYPE_NAMES = {
 };
 
 function startVideo(source) {
-  const stage = document.getElementById("video-stage");
+  const stage = document.getElementById("feed-day");
   stage.innerHTML = "";
   setVideoLabel(TYPE_NAMES[source.type] || source.type);
 
@@ -81,7 +82,7 @@ async function startLaptopCamera(wantedName) {
     // 3. Show it
     const video = makeVideoElement();
     video.srcObject = stream;
-    document.getElementById("video-stage").replaceChildren(video);
+    document.getElementById("feed-day").replaceChildren(video);
 
     const label = stream.getVideoTracks()[0].label || "Laptop camera";
     setVideoLabel(label);
@@ -138,7 +139,7 @@ function showVideoError(message) {
   const box = document.createElement("div");
   box.className = "video-error";
   box.textContent = message;
-  document.getElementById("video-stage").replaceChildren(box);
+  document.getElementById("feed-day").replaceChildren(box);
 }
 
 // In "pi" mode camera.js shows the Raspberry Pi cameras instead
