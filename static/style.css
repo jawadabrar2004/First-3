@@ -1,0 +1,190 @@
+/* =========================================================
+   Dispatcher console styles
+   Theme: Midnight Command (same tokens as css/styles.css).
+   1 tokens  2 base  3 header  4 layout  5 panels  6 video
+   7 telemetry  8 map  9 key info  10 transcript  11 controls
+   12 small screens
+   ========================================================= */
+
+/* 1. Tokens: each colour has one job */
+:root{
+  --bg:#0b1220;            /* page background */
+  --panel:#152238;         /* panels */
+  --panel-2:#1b2b45;       /* raised areas inside a panel */
+  --line:rgba(148,163,184,.16);
+  --line-strong:rgba(148,163,184,.32);
+
+  --text:#f1f5f9;
+  --muted:#94a3b8;
+  --faint:#64748b;
+
+  --accent:#22d3ee;        /* drone, primary controls */
+  --accent-ink:#0b1220;
+  --accent-tint:rgba(34,211,238,.12);
+  --critical:#f87171;      /* critical only: patient not breathing, payload drop */
+  --critical-tint:rgba(248,113,113,.12);
+  --warning:#fbbf24;
+  --warning-tint:rgba(251,191,36,.12);
+  --ok:#34d399;
+  --ok-tint:rgba(52,211,153,.12);
+
+  --radius:8px;
+  --radius-sm:6px;
+  --gap:12px;
+  --font:'Public Sans',system-ui,-apple-system,'Segoe UI',Roboto,Arial,sans-serif;
+  --mono:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  color-scheme:dark;
+}
+
+/* 2. Base */
+*,*::before,*::after{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--text);font-family:var(--font);font-size:14px;line-height:1.45}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.label{margin:0;color:var(--muted);font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase}
+
+.btn{font:inherit;font-weight:600;color:var(--text);background:var(--panel-2);border:1px solid var(--line-strong);
+  border-radius:var(--radius-sm);padding:9px 14px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:8px}
+.btn:hover:not(:disabled){border-color:var(--muted)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn svg{width:18px;height:18px;fill:currentColor}
+.btn-small{padding:6px 10px;font-size:12.5px}
+.btn-critical{background:var(--critical-tint);border-color:var(--critical);color:var(--critical)}
+.btn-critical:hover:not(:disabled){background:rgba(248,113,113,.22);border-color:var(--critical)}
+
+/* Status pills always carry a word, never colour alone */
+.pill{display:inline-block;margin-left:6px;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700;letter-spacing:.06em;border:1px solid}
+.pill-warning{color:var(--warning);background:var(--warning-tint);border-color:rgba(251,191,36,.4)}
+.pill-accent{color:var(--accent);background:var(--accent-tint);border-color:rgba(34,211,238,.4)}
+.pill-ok{color:var(--ok);background:var(--ok-tint);border-color:rgba(52,211,153,.4)}
+
+.rec-dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--critical);margin-right:6px;vertical-align:1px}
+
+/* 3. Header */
+.topbar{height:56px;display:flex;align-items:center;justify-content:space-between;gap:16px;padding:0 16px;
+  background:var(--panel);border-bottom:1px solid var(--line)}
+.brand{display:flex;align-items:center;gap:10px}
+.brand-name{font-weight:700;font-size:16px;line-height:1.1}
+.brand-sub{color:var(--muted);font-size:12px}
+.topbar-right{display:flex;align-items:center;gap:14px}
+.phase-chip{color:var(--accent);background:var(--accent-tint);border:1px solid rgba(34,211,238,.35);border-radius:999px;
+  padding:4px 12px;font-size:12.5px;font-weight:600;white-space:nowrap}
+.timer{display:flex;align-items:baseline;gap:8px}
+.timer .mono{font-size:20px;font-weight:600}
+.conn{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:700;letter-spacing:.06em;padding:4px 10px;border-radius:999px;border:1px solid}
+.conn .dot{width:8px;height:8px;border-radius:50%;background:currentColor}
+.conn-live{color:var(--ok);background:var(--ok-tint);border-color:rgba(52,211,153,.4)}
+.conn-offline{color:var(--muted);background:rgba(148,163,184,.12);border-color:var(--line-strong)}
+
+/* 4. Layout: video on top-left, telemetry + map under it, side column on the right */
+.console{
+  height:calc(100% - 56px);
+  display:grid;gap:var(--gap);padding:var(--gap);
+  grid-template-columns:minmax(0,1fr) minmax(0,1.15fr) 400px;
+  grid-template-rows:minmax(0,1fr) 260px;
+  grid-template-areas:
+    "video video side"
+    "tele  map   side";
+}
+.video-panel{grid-area:video}
+.telemetry-panel{grid-area:tele}
+.map-panel{grid-area:map}
+.side{grid-area:side;display:flex;flex-direction:column;gap:var(--gap);min-height:0}
+
+/* 5. Panels */
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);display:flex;flex-direction:column;min-height:0;overflow:hidden}
+.panel-head{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 14px;border-bottom:1px solid var(--line)}
+.panel-meta{color:var(--faint);font-size:12px}
+
+/* 6. Video */
+.video-wrap{position:relative;flex:1;min-height:0;background:#000}
+.video-stage{position:absolute;inset:0;display:flex;align-items:center;justify-content:center}
+.video-stage video,.video-stage img{width:100%;height:100%;object-fit:contain;display:block}
+.video-stage iframe{width:100%;height:100%;border:0}
+.video-error{max-width:420px;padding:16px;text-align:center;color:var(--muted)}
+.hud{position:absolute;inset:0;pointer-events:none;display:flex;flex-direction:column;justify-content:space-between;padding:12px;
+  text-shadow:0 1px 2px rgba(0,0,0,.9)}
+.hud-top,.hud-bottom{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;font-size:12.5px}
+.hud-live{font-weight:700;letter-spacing:.08em;background:rgba(11,18,32,.6);padding:2px 8px;border-radius:4px}
+.hud-top .mono,.hud-bottom{background:rgba(11,18,32,.6);padding:2px 8px;border-radius:4px}
+.hud-bottom b{color:var(--accent);font-weight:600}
+
+/* 7. Telemetry tiles */
+.tele-grid{flex:1;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));grid-auto-rows:1fr;gap:1px;background:var(--line)}
+.tile{background:var(--panel);padding:10px 12px;display:flex;flex-direction:column;gap:4px;min-width:0}
+.tile-value{font-size:22px;font-weight:600;line-height:1.1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tile-value small{font-size:12px;color:var(--muted);margin-left:3px;font-weight:500}
+.tile-gps{font-size:13px;line-height:1.35;white-space:normal}
+.bar{height:5px;border-radius:3px;background:var(--panel-2);overflow:hidden}
+.bar-fill{height:100%;width:0;background:var(--ok);transition:width .3s}
+.bar-fill.low{background:var(--warning)}
+.bar-fill.critical{background:var(--critical)}
+.signal-bars{display:flex;align-items:flex-end;gap:3px;height:14px}
+.signal-bars i{width:5px;background:var(--panel-2);border-radius:1px}
+.signal-bars i:nth-child(1){height:25%}.signal-bars i:nth-child(2){height:50%}
+.signal-bars i:nth-child(3){height:75%}.signal-bars i:nth-child(4){height:100%}
+.signal-bars i.on{background:var(--accent)}
+
+/* 8. Map */
+.map{flex:1;min-height:0;background:var(--panel-2)}
+.leaflet-container{font-family:var(--font)}
+.map-pin{border-radius:50%;border:2px solid var(--bg)}
+.map-pin-incident{background:var(--critical);box-shadow:0 0 0 4px var(--critical-tint)}
+.map-pin-home{background:var(--muted);border-radius:3px}
+.map-drone{color:var(--accent)}
+.map-drone svg{width:100%;height:100%;fill:var(--accent);stroke:var(--bg);stroke-width:1.5;filter:drop-shadow(0 0 2px rgba(0,0,0,.8))}
+
+/* 9. Key info */
+.keyinfo{margin:0;padding:6px 14px 10px}
+.ki-row{display:grid;grid-template-columns:92px 1fr;gap:10px;padding:7px 0;border-bottom:1px solid var(--line)}
+.ki-row:last-child{border-bottom:0}
+.keyinfo dt{color:var(--muted);font-size:12.5px}
+.keyinfo dd{margin:0;font-weight:600}
+.keyinfo dd.ki-empty{color:var(--faint);font-weight:400;font-style:italic}
+.keyinfo dd.ki-critical{color:var(--critical)}
+.keyinfo dd.ki-ok{color:var(--ok)}
+.keyinfo dd.ki-new{animation:ki-flash 1.6s ease-out}
+@keyframes ki-flash{from{background:var(--accent-tint)}to{background:transparent}}
+
+/* 10. Transcript */
+.transcript-panel{flex:1}
+.transcript{list-style:none;margin:0;padding:8px 14px;overflow-y:auto;flex:1;min-height:0}
+.transcript li{display:grid;grid-template-columns:44px 1fr;gap:8px;padding:5px 0}
+.transcript .t-time{color:var(--faint);font-size:12px;padding-top:1px}
+.transcript .t-speaker{display:block;font-size:10.5px;font-weight:700;letter-spacing:.08em}
+.transcript .sp-caller .t-speaker{color:var(--warning)}
+.transcript .sp-dispatch .t-speaker{color:var(--accent)}
+.transcript .sp-system{color:var(--muted);font-size:12.5px}
+.transcript .sp-system .t-speaker{color:var(--faint)}
+
+/* 11. Controls */
+.controls-panel{flex:none;padding-bottom:12px}
+.controls-panel > .btn,.controls-panel > .control-row,.controls-panel > .hint{margin-left:14px;margin-right:14px}
+.ptt{margin-top:12px;width:calc(100% - 28px);padding:14px;font-size:15px;background:var(--accent-tint);border-color:var(--accent);color:var(--accent);
+  user-select:none;-webkit-user-select:none;touch-action:none}
+.ptt.recording{background:var(--critical);border-color:var(--critical);color:var(--accent-ink)}
+.hint{margin-top:5px;margin-bottom:0;color:var(--faint);font-size:12px;min-height:1em}
+.hint.error{color:var(--warning)}
+.control-row{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:12px;padding-top:12px;border-top:1px solid var(--line)}
+.drop-actions,.confirm{display:flex;gap:6px}
+.rth{margin-top:12px;width:calc(100% - 28px)}
+
+/* 12. Smaller screens: stack everything in one column and let the page scroll */
+@media (max-width:1150px){
+  .console{height:auto;grid-template-columns:minmax(0,1fr);grid-template-rows:none;
+    grid-template-areas:"video" "side" "tele" "map"}
+  .video-wrap{flex:none;aspect-ratio:16/9}
+  .transcript{max-height:340px}
+  .map{flex:none;height:300px}
+  .tele-grid{grid-auto-rows:auto}
+}
+@media (max-width:640px){
+  .console{padding:8px;gap:8px}
+  .topbar{height:auto;flex-wrap:wrap;padding:8px 12px}
+  .topbar-right{flex-wrap:wrap;gap:8px}
+  .phase-chip{order:5}
+  .tele-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .control-row{flex-wrap:wrap}
+}

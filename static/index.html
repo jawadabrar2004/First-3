@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0b1220">
+  <title>First 3 Dispatch</title>
+  <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+
+  <!-- Fonts (same as the rest of the project) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+  <!-- Leaflet = the map library -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+<!-- ================= HEADER ================= -->
+<header class="topbar">
+  <div class="brand">
+    <img src="/static/favicon.svg" alt="" width="28" height="28">
+    <div>
+      <div class="brand-name">First 3</div>
+      <div class="brand-sub">Drone Dispatch Console</div>
+    </div>
+  </div>
+
+  <div class="topbar-right">
+    <div class="phase-chip" id="phase-chip">Waiting for drone…</div>
+    <div class="timer">
+      <span class="label">Mission</span>
+      <span class="mono" id="mission-timer">00:00</span>
+    </div>
+    <div class="conn conn-offline" id="conn" role="status">
+      <span class="dot"></span><span id="conn-text">OFFLINE</span>
+    </div>
+    <button class="btn btn-small" id="reset-btn" type="button" title="Restart the mock call and flight">Restart demo</button>
+  </div>
+</header>
+
+<!-- ================= MAIN CONSOLE ================= -->
+<main class="console">
+
+  <!-- Video: the big panel -->
+  <section class="panel video-panel" aria-label="Drone camera">
+    <div class="panel-head">
+      <h2 class="label">Drone camera</h2>
+      <span class="panel-meta" id="video-source"></span>
+    </div>
+    <div class="video-wrap">
+      <div id="video-stage" class="video-stage"></div>
+      <!-- Heads-up display drawn on top of the video -->
+      <div class="hud" aria-hidden="true">
+        <div class="hud-top">
+          <span class="hud-live"><span class="rec-dot"></span>LIVE</span>
+          <span class="mono" id="hud-phase">--</span>
+        </div>
+        <div class="hud-bottom mono">
+          <span>ALT <b id="hud-alt">--</b> m</span>
+          <span>SPD <b id="hud-spd">--</b> m/s</span>
+          <span>HDG <b id="hud-hdg">--</b>°</span>
+          <span id="hud-pos">--</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Telemetry: numbers from the drone -->
+  <section class="panel telemetry-panel" aria-label="Telemetry">
+    <div class="panel-head">
+      <h2 class="label">Telemetry</h2>
+      <span class="panel-meta mono" id="tele-eta"></span>
+    </div>
+    <div class="tele-grid">
+      <div class="tile">
+        <span class="label">Battery</span>
+        <span class="tile-value mono"><span id="t-battery">--</span><small>%</small></span>
+        <div class="bar"><div class="bar-fill" id="t-battery-bar"></div></div>
+      </div>
+      <div class="tile">
+        <span class="label">Altitude</span>
+        <span class="tile-value mono"><span id="t-alt">--</span><small>m</small></span>
+      </div>
+      <div class="tile">
+        <span class="label">Speed</span>
+        <span class="tile-value mono"><span id="t-speed">--</span><small>m/s</small></span>
+      </div>
+      <div class="tile">
+        <span class="label">Flight mode</span>
+        <span class="tile-value mono" id="t-mode">--</span>
+      </div>
+      <div class="tile">
+        <span class="label">Signal</span>
+        <span class="tile-value mono"><span id="t-signal">--</span><small>%</small></span>
+        <div class="signal-bars" id="t-signal-bars"><i></i><i></i><i></i><i></i></div>
+      </div>
+      <div class="tile">
+        <span class="label">GPS</span>
+        <span class="tile-value tile-gps mono" id="t-gps">--</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- Map -->
+  <section class="panel map-panel" aria-label="Map">
+    <div class="panel-head">
+      <h2 class="label">Map</h2>
+      <span class="panel-meta mono" id="map-distance"></span>
+    </div>
+    <div id="map" class="map"></div>
+  </section>
+
+  <!-- Right column -->
+  <aside class="side">
+
+    <!-- Key info pulled from the call -->
+    <section class="panel keyinfo-panel" aria-label="Key information">
+      <div class="panel-head">
+        <h2 class="label">Key info</h2>
+        <span class="panel-meta">from call transcript</span>
+      </div>
+      <dl class="keyinfo">
+        <div class="ki-row"><dt>Address</dt><dd id="ki-address" class="ki-empty">Listening…</dd></div>
+        <div class="ki-row"><dt>Emergency</dt><dd id="ki-type" class="ki-empty">Listening…</dd></div>
+        <div class="ki-row"><dt>Patient</dt><dd id="ki-patient" class="ki-empty">Listening…</dd></div>
+        <div class="ki-row"><dt>Callback</dt><dd id="ki-callback" class="ki-empty mono">Listening…</dd></div>
+      </dl>
+    </section>
+
+    <!-- Live transcript -->
+    <section class="panel transcript-panel" aria-label="Call transcript">
+      <div class="panel-head">
+        <h2 class="label">Live call transcript</h2>
+        <span class="panel-meta"><span class="rec-dot"></span>911 line</span>
+      </div>
+      <ol class="transcript" id="transcript" aria-live="polite"></ol>
+    </section>
+
+    <!-- Controls -->
+    <section class="panel controls-panel" aria-label="Drone controls">
+      <div class="panel-head">
+        <h2 class="label">Controls</h2>
+      </div>
+
+      <button class="btn ptt" id="ptt-btn" type="button">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 14a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11h-2z"/></svg>
+        <span id="ptt-text">Hold to talk</span>
+      </button>
+      <p class="hint" id="ptt-status">Speaks through the drone's speaker</p>
+
+      <div class="control-row">
+        <div>
+          <span class="label">Payload · AED</span>
+          <span class="pill pill-warning" id="payload-pill">ARMED</span>
+        </div>
+        <div class="drop-actions">
+          <button class="btn btn-critical" id="drop-btn" type="button">Drop payload</button>
+          <!-- Shown after the first click, so a drop is never accidental -->
+          <span class="confirm" id="drop-confirm" hidden>
+            <button class="btn btn-critical" id="drop-yes" type="button">Confirm drop</button>
+            <button class="btn" id="drop-no" type="button">Cancel</button>
+          </span>
+        </div>
+      </div>
+      <p class="hint" id="drop-hint"></p>
+
+      <button class="btn rth" id="rth-btn" type="button">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 2 12h3v8h6v-6h2v6h6v-8h3z"/></svg>
+        Return to home
+      </button>
+    </section>
+  </aside>
+</main>
+
+<!-- Leaflet library, then our scripts. config.js must load first. -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="/static/config.js"></script>
+<script src="/static/video.js"></script>
+<script src="/static/app.js"></script>
+</body>
+</html>
