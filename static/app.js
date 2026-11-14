@@ -24,6 +24,7 @@ function connect() {
 function handleMessage(msg) {
   if (msg.type === "snapshot") {
     // Full state: rebuild everything from scratch
+    setupMap(msg.mission);
     document.getElementById("transcript").innerHTML = "";
     msg.transcript.forEach(addTranscriptLine);
     showKeyInfo(msg.key_info, false);
@@ -42,6 +43,8 @@ function onTelemetry(t, missionSeconds) {
   document.getElementById("mission-timer").textContent = formatTime(missionSeconds);
   document.getElementById("phase-chip").textContent = t.phase_label;
   updateHud(t);
+  updateTelemetry(t); // telemetry.js
+  updateMap(t);       // map.js
 }
 
 // ---------------------------------------------------------------------
