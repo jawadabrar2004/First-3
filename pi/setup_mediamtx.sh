@@ -3,8 +3,12 @@
 # setup_mediamtx.sh - install MediaMTX on a Raspberry Pi 5 and stream
 # both cameras over WebRTC + RTSP.
 #
-#   Day camera:  http://<pi>:8889/cam   rtsp://<pi>:8554/cam   (camera 0)
-#   IR camera:   http://<pi>:8889/ir    rtsp://<pi>:8554/ir    (camera 1)
+#   Day camera:  http://<pi>:8889/cam   rtsp://<pi>:8554/cam   (camera 1, imx708)
+#   IR camera:   http://<pi>:8889/ir    rtsp://<pi>:8554/ir    (camera 0, imx219)
+#
+# The settings live in mediamtx.yml, next to this script; it gets installed to
+# /usr/local/etc/mediamtx.yml. Keep the two files together (e.g. git clone the
+# repo on the Pi, or copy the whole pi/ folder).
 #
 # Run on the Pi:   sudo bash setup_mediamtx.sh
 # Safe to run again: it updates MediaMTX and rewrites the config
@@ -12,6 +16,8 @@
 # =====================================================================
 set -euo pipefail
 
+HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SOURCE_CONF="$HERE/mediamtx.yml"
 BIN=/usr/local/bin/mediamtx
 CONF=/usr/local/etc/mediamtx.yml
 SERVICE=/etc/systemd/system/mediamtx.service
@@ -23,6 +29,10 @@ if [ "$(id -u)" -ne 0 ]; then
 fi
 if [ "$(uname -m)" != "aarch64" ]; then
   echo "Warning: this is $(uname -m), not aarch64 (64-bit Pi OS). The arm64 download may not run."
+fi
+if [ ! -f "$SOURCE_CONF" ]; then
+  echo "Can't find $SOURCE_CONF. Copy mediamtx.yml into the same folder as this script."
+  exit 1
 fi
 for tool in curl tar; do
   command -v "$tool" >/dev/null || { echo "Missing $tool. Install it with: sudo apt install -y $tool"; exit 1; }
@@ -56,34 +66,8 @@ if [ -f "$CONF" ]; then
   cp "$CONF" "$CONF.bak.$(date +%Y%m%d-%H%M%S)"
   echo "Backed up the old config next to $CONF"
 fi
-cat > "$CONF" <<'EOF'
-# MediaMTX config written by pi/setup_mediamtx.sh
-# Anything not listed here uses MediaMTX's defaults.
-
-rtsp: yes
-rtspAddress: :8554     # rtsp://<pi>:8554/cam  and  /ir  (computer vision)
-
-webrtc: yes
-webrtcAddress: :8889   # http://<pi>:8889/cam  and  /ir  (dispatch console)
-
-paths:
-  # Day camera (camera 0)
-  cam:
-    source: rpiCamera
-    rpiCameraCamID: 0
-    rpiCameraWidth: 1280
-    rpiCameraHeight: 720
-    rpiCameraCodec: softwareH264   # the Pi 5 has no hardware H.264 encoder
-
-  # IR camera (camera 1)
-  ir:
-    source: rpiCamera
-    rpiCameraCamID: 1
-    rpiCameraWidth: 1280
-    rpiCameraHeight: 720
-    rpiCameraCodec: softwareH264
-EOF
-echo "Wrote $CONF"
+install -m 644 "$SOURCE_CONF" "$CONF"
+echo "Installed $SOURCE_CONF -> $CONF"
 
 # ---- 4. run it as a service (starts on boot, restarts if it crashes) --
 cat > "$SERVICE" <<EOF

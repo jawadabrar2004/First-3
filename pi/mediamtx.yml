@@ -1,0 +1,38 @@
+# MediaMTX config for the drone's Raspberry Pi 5 (installed by setup_mediamtx.sh
+# to /usr/local/etc/mediamtx.yml). Anything not listed here uses MediaMTX's defaults.
+#
+#   Day camera:  http://<pi>:8889/cam   rtsp://<pi>:8554/cam   (imx708, Camera Module 3)
+#   IR camera:   http://<pi>:8889/ir    rtsp://<pi>:8554/ir    (imx219, NoIR)
+#
+# Check the camera numbers with:  rpicam-hello --list-cameras
+# The Pi 5 has no hardware H.264 encoder, so both use softwareH264. Sizes,
+# frame rates and bitrates are kept low so two streams fit on a phone hotspot.
+
+rtsp: yes
+rtspAddress: :8554     # rtsp://<pi>:8554/cam  and  /ir  (machine vision)
+
+webrtc: yes
+webrtcAddress: :8889   # http://<pi>:8889/cam  and  /ir  (dispatch console)
+
+paths:
+  # Day camera: imx708 (Camera Module 3) = camera 1
+  cam:
+    source: rpiCamera
+    rpiCameraCamID: 1
+    rpiCameraWidth: 960
+    rpiCameraHeight: 540
+    rpiCameraFPS: 15
+    rpiCameraBitrate: 1500000      # 1.5 Mbps
+    rpiCameraIDRPeriod: 15         # a full picture every 15 frames (1 s): quick to (re)join
+    rpiCameraCodec: softwareH264
+
+  # IR camera: imx219 (NoIR) = camera 0
+  ir:
+    source: rpiCamera
+    rpiCameraCamID: 0
+    rpiCameraWidth: 640
+    rpiCameraHeight: 480
+    rpiCameraFPS: 10
+    rpiCameraBitrate: 800000       # 0.8 Mbps
+    rpiCameraIDRPeriod: 10         # a full picture every 10 frames (1 s)
+    rpiCameraCodec: softwareH264
