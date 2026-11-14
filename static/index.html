@@ -20,12 +20,12 @@
     incoming -> call is ringing            (Answer button)
     call     -> on the call                (transcript, address box, drone choices)
     enroute  -> drone flying               (blurred camera + ETA countdown)
-    onscene  -> drone over the incident    (Feed 1 camera, panels on the sides)
+    onscene  -> drone over the incident    (Feed 1 camera, small drop-downs, bottom bar)
 -->
 <body data-view="incoming">
 
 <!-- The drone camera. Full screen and blurred while en route; once on
-     scene it moves into the middle column (see style.css). -->
+     scene it fills the space between the header and the bottom bar. -->
 <div class="video-layer" aria-hidden="true">
   <div id="video-stage" class="video-stage"></div>
 </div>
@@ -49,6 +49,11 @@
     <div class="conn conn-offline" id="conn" role="status">
       <span class="dot"></span><span id="conn-text">OFFLINE</span>
     </div>
+    <!-- Only shown once the drone is on scene (see style.css) -->
+    <button class="btn btn-small rth-top" id="rth-btn" type="button">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 2 12h3v8h6v-6h2v6h6v-8h3z"/></svg>
+      <span id="rth-text">Return to base</span>
+    </button>
     <button class="btn btn-small" id="reset-btn" type="button" title="Start a new mock call">Restart demo</button>
   </div>
 </header>
@@ -125,17 +130,20 @@
 </section>
 
 <!-- ================= 4. ON SCENE =================
-     Three columns. The camera sits in the middle column on its own, so
-     nothing covers it. Everything else is in the side columns.
-       left:   telemetry, payload details, return to base
-       middle: the camera (style.css lines the video up with this box)
-       right:  live call + status feed, hold to talk                     -->
+     The camera fills the space between the header and the bottom bar.
+     The ONLY things on top of the camera are two small drop-down boxes
+     on its left edge (closed by default). Everything else is in the
+     bottom bar, below the camera, or in the header (Return to base).   -->
 <section class="screen screen-onscene" aria-label="Drone on scene">
 
-  <!-- LEFT COLUMN -->
-  <aside class="side side-left">
-    <div class="panel side-panel" aria-label="Telemetry">
-      <div class="panel-head"><h2 class="label">Telemetry</h2></div>
+  <!-- Drop-down boxes on the left edge of the camera.
+       <details> opens and closes by itself when its <summary> is clicked. -->
+  <div class="dropdowns">
+    <details class="dropdown" id="tele-dropdown">
+      <summary>
+        <span class="label">Telemetry</span>
+        <span class="summary-value mono"><span id="t-battery-mini">--</span>%</span>
+      </summary>
       <div class="tele-list">
         <div class="tele-row">
           <span class="label">Battery</span>
@@ -153,60 +161,46 @@
         <div class="tele-row"><span class="label">GPS</span><span class="tele-value tele-gps mono" id="t-gps">--</span></div>
       </div>
       <span class="video-source" id="video-source"></span>
-    </div>
+    </details>
 
-    <div class="panel side-panel" aria-label="Payload">
-      <div class="panel-head">
-        <h2 class="label">Payload</h2>
-        <span class="pill pill-warning" id="payload-pill">ARMED</span>
-      </div>
-      <div class="payload-body">
-        <div class="payload-name" id="payload-name">--</div>
-        <dl class="payload-facts">
-          <dt>Location</dt><dd id="scene-address">--</dd>
-        </dl>
-        <button class="btn btn-critical btn-big btn-wide" id="drop-btn" type="button">Drop payload</button>
-        <!-- Shown after the first click, so a drop is never accidental -->
-        <div class="confirm" id="drop-confirm" hidden>
-          <button class="btn btn-critical btn-big" id="drop-yes" type="button">Confirm drop</button>
-          <button class="btn btn-big" id="drop-no" type="button">Cancel</button>
-        </div>
-        <p class="hint" id="drop-hint"></p>
-      </div>
-    </div>
-
-    <div class="rth-box">
-      <button class="btn btn-big btn-wide" id="rth-btn" type="button">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 2 12h3v8h6v-6h2v6h6v-8h3z"/></svg>
-        Return to base
-      </button>
-      <p class="hint" id="rth-hint"></p>
-    </div>
-  </aside>
-
-  <!-- MIDDLE: the camera shows through here. Only a small tag in the corner. -->
-  <div class="feed-frame">
-    <span class="feed-tag"><span class="rec-dot"></span>Feed 1</span>
-    <span class="feed-phase" id="scene-phase" hidden></span>
+    <details class="dropdown" id="feed-dropdown">
+      <summary>
+        <span class="label">Live call &amp; status</span>
+        <span class="new-dot" aria-label="New updates"></span>
+      </summary>
+      <ol class="transcript" aria-live="polite"></ol>
+    </details>
   </div>
 
-  <!-- RIGHT COLUMN -->
-  <aside class="side side-right">
-    <div class="panel side-panel feed-panel">
-      <div class="panel-head">
-        <h2 class="label"><span class="rec-dot"></span>Live call &amp; status</h2>
-      </div>
-      <ol class="transcript" aria-live="polite"></ol>
+  <!-- Bottom bar: below the camera, never on it -->
+  <div class="bottom-bar">
+    <div class="bar-feed">
+      <span class="feed-tag"><span class="rec-dot"></span>Feed 1</span>
+      <span class="bar-address" id="scene-address"></span>
+      <span class="feed-phase" id="scene-phase" hidden></span>
     </div>
 
-    <div class="talk-box">
+    <div class="bar-payload">
+      <span class="label">Payload</span>
+      <span class="payload-name" id="payload-name">--</span>
+      <span class="pill pill-warning" id="payload-pill">ARMED</span>
+      <button class="btn btn-critical btn-small" id="drop-btn" type="button">Drop payload</button>
+      <!-- Shown after the first click, so a drop is never accidental -->
+      <span class="confirm" id="drop-confirm" hidden>
+        <button class="btn btn-critical btn-small" id="drop-yes" type="button">Confirm drop</button>
+        <button class="btn btn-small" id="drop-no" type="button">Cancel</button>
+      </span>
+      <span class="hint" id="drop-hint"></span>
+    </div>
+
+    <div class="bar-talk">
       <button class="btn ptt" id="ptt-btn" type="button">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 14a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11h-2z"/></svg>
         <span id="ptt-text">Hold to talk</span>
       </button>
-      <p class="hint" id="ptt-status">Speaks to the person giving aid through the drone</p>
+      <span class="hint" id="ptt-status"></span>
     </div>
-  </aside>
+  </div>
 </section>
 
 <!-- Our scripts. config.js must load first. -->

@@ -110,7 +110,8 @@ async function sendRecording() {
     const res = await fetch("/api/talk", { method: "POST", body: form });
     const data = await res.json();
     if (!res.ok) throw new Error(data.detail || res.statusText);
-    setPttStatus("Sent to the person giving aid ✓");
+    setPttStatus("Sent ✓");
+    setTimeout(() => { if (pttStatus.textContent === "Sent ✓") setPttStatus(""); }, 3000);
   } catch (err) {
     setPttStatus("Send failed: " + err.message, true);
   }
@@ -179,14 +180,15 @@ function closeConfirm() {
 }
 
 // ---------------------------------------------------------------------
-// Return to home
+// Return to base
 // ---------------------------------------------------------------------
+// The button is in the header, next to LIVE. Its label doubles as its status.
 const rthBtn = document.getElementById("rth-btn");
-const rthHint = document.getElementById("rth-hint");
+const rthText = document.getElementById("rth-text");
 
 rthBtn.addEventListener("click", async () => {
   const data = await postJson("/api/rth");
-  flashMessage(rthHint, data.message, !data.ok);
+  if (!data.ok) rthBtn.title = data.message; // rare: shown when hovering the button
 });
 
 // ---------------------------------------------------------------------
@@ -202,17 +204,14 @@ function updateControls(t) {
   dropBtn.disabled = !canDrop;
   if (!canDrop && !dropConfirm.hidden) closeConfirm();
 
-  let dropText;
-  if (t.payload === "dropping") dropText = "Lowering payload…";
-  else if (t.payload === "dropped") dropText = "Payload delivered";
-  else if (t.phase === "ON_SCENE") dropText = "Drone on scene. Ready to drop.";
-  else dropText = "Available when the drone is on scene";
-  setHint(dropHint, dropText);
+  // Kept short on purpose: the pill already says ARMED / DROPPING / DROPPED
+  setHint(dropHint, t.payload === "dropping" ? "Lowering…" : "");
 
   const flying = ["EN_ROUTE", "ON_SCENE"].includes(t.phase);
   rthBtn.disabled = !flying;
-  const returning = t.phase === "RETURNING" || t.phase === "LANDING";
-  setHint(rthHint, returning ? "Returning to base" : "");
+  if (t.phase === "RETURNING" || t.phase === "LANDING") rthText.textContent = "Returning to base…";
+  else if (t.phase === "LANDED") rthText.textContent = "Landed at base";
+  else rthText.textContent = "Return to base";
 }
 
 // Hints show the current status, except right after a button press,

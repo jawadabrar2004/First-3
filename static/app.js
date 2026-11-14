@@ -154,7 +154,21 @@ function addTranscriptLine(line) {
     list.appendChild(li);
     if (atBottom) list.scrollTop = list.scrollHeight;
   });
+  markFeedUnread();
 }
+
+// On scene the feed lives in a small drop-down box. While it's closed, a dot
+// on it shows there are new lines; opening it clears the dot.
+const feedDropdown = document.getElementById("feed-dropdown");
+function markFeedUnread() {
+  if (!feedDropdown.open && document.body.dataset.view === "onscene") feedDropdown.classList.add("has-new");
+}
+feedDropdown.addEventListener("toggle", () => {
+  if (!feedDropdown.open) return;
+  feedDropdown.classList.remove("has-new");
+  const list = feedDropdown.querySelector(".transcript");
+  list.scrollTop = list.scrollHeight; // jump to the newest line
+});
 
 // Hidden lists don't scroll, so jump to the newest line when a screen appears
 new MutationObserver(() => {
