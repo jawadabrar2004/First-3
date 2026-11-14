@@ -69,7 +69,10 @@ A wireless 911 call doesn't give an exact spot: the phone network reports a poin
 - The caller's reported point and the radius are set in one place: `CALLER_LOCATION` and `SEARCH_RADIUS_M` in `drone_interface.py`. (The mock person is really at `INCIDENT`, about 45 m from the reported point.)
 - The server works out the drone's distance to that point every update and sends `distance_to_caller`, `distance_to_zone` and `in_search_zone` with the telemetry (the reported point and radius go to the page with the rest of the mission).
 - The drone flies straight to the zone (the ETA counts down to the zone's edge). Inside it, the mock drone slows down and searches (status **Searching the zone**): it checks the reported point first, then finds the person and hovers (**On scene**, where **Drop payload** turns on).
-- The cameras stay off until the drone is in the zone (the ETA screen shows a blurred placeholder). On entering, the camera feeds load **once** and the machine vision starts. They stay on until **Return to base** or **Restart demo**.
+- **Cameras: Auto / On** (switch in the bottom bar; starting value `CAMERAS_ALWAYS_ON` in `static/config.js`, currently `true`):
+  - **On:** the Pi feeds load as soon as the page opens and the Pi is online, on every screen, so they're ready instantly.
+  - **Auto:** the feeds stay off until the drone is in the zone (the ETA screen shows a blurred placeholder), then load **once**.
+  Either way, entering the zone starts the machine vision, which runs until **Return to base** or **Restart demo**.
 
 ### Machine vision
 

@@ -2,9 +2,13 @@
 // camera.js - the Raspberry Pi cameras, shown side by side:
 //             Day on the left, IR on the right.
 //
-//   * VIDEO_MODE "pi":   the feeds only load once the drone is in the search
-//                        zone (telemetry.cameras_active; app.js calls
-//                        setCamerasActive). Before that the blurred placeholder shows.
+//   * VIDEO_MODE "pi":   when the feeds load depends on the Cameras switch
+//                        (bottom bar; starts as CAMERAS_ALWAYS_ON in config.js):
+//                          On   - as soon as the page opens and the Pi is online,
+//                                 on every screen
+//                          Auto - only once the drone is in the search zone
+//                                 (telemetry.cameras_active; app.js calls
+//                                 setCamerasActive). Before that the blurred placeholder shows.
 //                        Each pane shows one MediaMTX player page in an
 //                        <iframe>. Each iframe is created ONCE and then left
 //                        alone: removing or re-creating it restarts the video.
@@ -30,7 +34,13 @@ const OFFLINE_AFTER_FAILS = 3;     // failed checks in a row before we call it o
 let camState = "unknown";          // "unknown" | "online" | "unsure" | "offline"
 let failedChecks = 0;              // failed checks in a row (reset on success)
 let warnedHostMismatch = false;
-let camerasWanted = false;         // true once the drone has entered the search zone
+let zoneActive = false;            // true once the drone has entered the search zone
+let camerasAlwaysOn = typeof CAMERAS_ALWAYS_ON === "undefined" ? false : CAMERAS_ALWAYS_ON; // "On" vs "Auto"
+
+// Should the Pi feeds be loaded right now?
+function camerasWanted() {
+  return camerasAlwaysOn || zoneActive;
+}
 const loadedFrames = {};           // feed -> its <iframe>, while loaded
 const connectTimers = {};          // feed -> timer that hides "connecting"
 const cameraStats = { created: { day: 0, ir: 0 }, loadEvents: { day: 0, ir: 0 }, removed: { day: 0, ir: 0 } };
@@ -134,7 +144,7 @@ async function checkCamera() {
     camState = "online";
     setCamStatus("online", "Pi cameras online at " + where);
     // Only on an offline -> online change, and only once the drone is in the zone
-    if (wasOffline && camerasWanted) FEEDS.forEach(loadPiStream);
+    if (wasOffline && camerasWanted()) FEEDS.forEach(loadPiStream);
     return;
   }
 
@@ -168,16 +178,40 @@ async function cameraCheckLoop() {
 // update; only a change does anything, so the feeds load exactly once.
 // ---------------------------------------------------------------------
 function setCamerasActive(active) {
-  if (VIDEO_MODE !== "pi" || active === camerasWanted) return;
-  camerasWanted = active;
-  camLog("cameras", active ? "ACTIVE (drone in search zone)" : "off (new mission)");
-  if (active) {
+  if (VIDEO_MODE !== "pi" || active === zoneActive) return;
+  zoneActive = active;
+  camLog("search zone", active ? "entered" : "reset (new mission)");
+  applyCameraWant();
+}
+
+// Load or remove the feeds to match camerasWanted(). Loading is safe to repeat:
+// loadPiStream() never re-creates a feed that's already there.
+function applyCameraWant() {
+  if (VIDEO_MODE !== "pi") return;
+  if (camerasWanted()) {
     if (camState === "online" || camState === "unsure") FEEDS.forEach(loadPiStream);
     // otherwise the next successful status check loads them
   } else {
     FEEDS.forEach((feed) => { unloadPiStream(feed); hideCamMessage(feed); });
   }
 }
+
+// ---------------------------------------------------------------------
+// Cameras: Auto / On switch (bottom bar). Only for this page session;
+// the starting value comes from CAMERAS_ALWAYS_ON in config.js.
+// ---------------------------------------------------------------------
+function setCamerasAlwaysOn(on) {
+  camerasAlwaysOn = on;
+  document.querySelectorAll(".cams-btn").forEach((btn) => {
+    btn.setAttribute("aria-pressed", String((btn.dataset.cams === "on") === on));
+  });
+  camLog("cameras switch:", on ? "On (always)" : "Auto (search zone)");
+  applyCameraWant();
+}
+
+document.querySelectorAll(".cams-btn").forEach((btn) => {
+  btn.addEventListener("click", () => setCamerasAlwaysOn(btn.dataset.cams === "on"));
+});
 
 // Dot in the header: green = online, yellow = not sure, red = offline, grey = mock / not checked yet
 function setCamStatus(state, detail) {
@@ -229,9 +263,11 @@ document.addEventListener("keydown", (e) => {
 // ---------------------------------------------------------------------
 if (VIDEO_MODE === "pi") {
   setVideoLabel("DAY + IR · " + PI_HOST); // video.js: shown in the Telemetry box
+  setCamerasAlwaysOn(camerasAlwaysOn);    // show the switch's starting position
   camLog("pi mode, PI_HOST =", PI_HOST);
   cameraCheckLoop();
 } else {
+  document.getElementById("cams-toggle").hidden = true; // the webcam is always on in mock mode
   setCamStatus("mock", "Mock mode: using " + VIDEO_SOURCE.type + " (VIDEO_MODE in static/config.js)");
   document.querySelector(".video-layer").classList.add("mock-mode");
   // video.js fills the Day pane (the webcam takes a moment); copy it each time it changes

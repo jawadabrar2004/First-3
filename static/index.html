@@ -244,6 +244,14 @@
       <span class="feed-phase" id="scene-phase" hidden></span>
     </div>
 
+    <!-- Cameras: Auto = load the Pi feeds in the search zone, On = load them right away (camera.js) -->
+    <div class="cams-toggle" id="cams-toggle" role="group" aria-label="Cameras"
+         title="Auto: cameras start in the search zone. On: cameras always on.">
+      <span class="label">Cameras</span>
+      <button class="cams-btn" type="button" data-cams="auto" aria-pressed="false">Auto</button>
+      <button class="cams-btn" type="button" data-cams="on" aria-pressed="true">On</button>
+    </div>
+
     <!-- Machine vision: people in view + alerts active right now (vision.js) -->
     <div class="bar-scene" title="Machine vision (day camera)">
       <span class="label">Scene</span>

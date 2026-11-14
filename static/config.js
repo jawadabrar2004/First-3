@@ -9,6 +9,12 @@
 // ---------------------------------------------------------------------
 const VIDEO_MODE = "pi";
 
+// Pi cameras: true = load the feeds as soon as the page opens and the Pi is
+// online, on every screen. false = only once the drone reaches the search
+// zone. The "Cameras: Auto / On" switch in the bottom bar changes it while
+// the page is open (On = true, Auto = false).
+const CAMERAS_ALWAYS_ON = true;
+
 // Log every camera status check and every video iframe change in the
 // browser console (F12). Leave false normally; turn on to debug the feeds.
 const DEBUG_CAMERA = false;

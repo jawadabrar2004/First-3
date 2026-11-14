@@ -281,6 +281,15 @@ body[data-view="enroute"] .video-stage{filter:blur(22px) brightness(.45) saturat
 .bar-address{color:var(--muted);font-size:.85rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .feed-phase{color:var(--warning);font-size:.8rem;font-weight:700;white-space:nowrap}
 .bar-payload,.bar-talk{display:flex;align-items:center;gap:.6rem;white-space:nowrap}
+/* Cameras: Auto / On switch (camera.js) */
+.cams-toggle{display:flex;align-items:center;gap:0;white-space:nowrap}
+.cams-toggle[hidden]{display:none}
+.cams-toggle .label{margin-right:.45rem}
+.cams-btn{font:inherit;font-size:.7rem;font-weight:700;letter-spacing:.06em;padding:.2rem .6rem;cursor:pointer;
+  color:var(--muted);background:transparent;border:1px solid var(--line-strong)}
+.cams-btn:first-of-type{border-radius:999px 0 0 999px;border-right:0}
+.cams-btn:last-of-type{border-radius:0 999px 999px 0}
+.cams-btn[aria-pressed="true"]{color:var(--accent-ink);background:var(--accent);border-color:var(--accent)}
 .bar-scene{display:flex;align-items:center;gap:.45rem;white-space:nowrap}
 .scene-people{font-size:1.4rem;font-weight:700;line-height:1}
 .scene-unit{font-size:.75rem;color:var(--muted)}
