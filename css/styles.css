@@ -1,0 +1,112 @@
+/* =========================================================
+   Emergency response dashboard - shared styles
+   Theme: Midnight Command (deep navy, cyan accents, soft white text,
+   red kept for critical alerts only).
+   1 tokens  2 base  3 buttons  4 call page  5 responsive
+   ========================================================= */
+
+/* 1. Tokens. Each colour has one job; keep bright colours for meaningful states. */
+:root{
+  /* Surfaces */
+  --bg:#0b1220;                   /* page background, navy */
+  --panel:#152238;                /* panels, slate navy */
+  --panel-2:#1b2b45;              /* raised: hover, inputs, a panel inside a panel */
+  --line:rgba(148,163,184,.16);   /* thin borders */
+  --line-strong:rgba(148,163,184,.32);
+
+  /* Text */
+  --text:#f1f5f9;                 /* main text, ice white */
+  --muted:#94a3b8;                /* secondary information */
+  --faint:#64748b;                /* timestamps, hints */
+
+  /* Jobs */
+  --accent:#22d3ee;               /* selected, active navigation, primary controls */
+  --accent-ink:#0b1220;           /* text on a cyan button */
+  --accent-tint:rgba(34,211,238,.12);
+  --critical:#f87171;             /* critical alert needing immediate attention */
+  --critical-tint:rgba(248,113,113,.12);
+  --warning:#fbbf24;              /* warning, needs review */
+  --warning-tint:rgba(251,191,36,.12);
+  --ok:#34d399;                   /* confirmed normal, available */
+  --ok-tint:rgba(52,211,153,.12);
+  --offline:#94a3b8;              /* unknown or offline (always with a label) */
+  --offline-tint:rgba(148,163,184,.12);
+
+  /* Shape */
+  --radius:8px;
+  --radius-sm:6px;
+  --radius-lg:10px;
+  --shadow:0 10px 30px rgba(2,6,23,.45);
+
+  /* Type: same sans as Doorstep, plus a monospace for timers, coordinates and telemetry */
+  --font:'Public Sans',system-ui,-apple-system,'Segoe UI',Roboto,Arial,sans-serif;
+  --mono:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+
+  --focus:#22d3ee;
+  color-scheme:dark;
+}
+
+/* 2. Base */
+*,*::before,*::after{box-sizing:border-box}
+[hidden]{display:none!important}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;min-height:100vh;background:var(--bg);color:var(--text);font-family:var(--font);font-size:15px;line-height:1.5;padding-bottom:env(safe-area-inset-bottom,0px)}
+img,svg{max-width:100%}
+a{color:var(--accent)}
+:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+a,button,input,select,textarea,label,summary{touch-action:manipulation}
+/* Numbers (phone numbers, coordinates, timers) keep their width so nothing jumps. */
+.mono{font-family:var(--mono);font-variant-numeric:tabular-nums;letter-spacing:0}
+.label{display:block;margin:0;color:var(--muted);font-size:11.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase}
+
+/* 3. Buttons */
+.btn{display:inline-flex;justify-content:center;align-items:center;gap:8px;font:inherit;font-weight:700;font-size:15px;padding:10px 16px;min-height:44px;border-radius:var(--radius);border:1px solid transparent;cursor:pointer;text-decoration:none;line-height:1.2;transition:background .15s,border-color .15s,color .15s}
+.btn-primary{background:var(--accent);color:var(--accent-ink)}
+.btn-primary:hover{background:#67e8f9}
+.btn[disabled]{cursor:default}
+
+/* 4. Call page: the line at the top, the Answer button, then the call card. */
+.call-page{max-width:1120px;margin:0 auto;padding:clamp(32px,8vh,72px) max(16px,env(safe-area-inset-right,0px)) 48px max(16px,env(safe-area-inset-left,0px));text-align:center}
+/* When it wraps on a phone, both lines get an even share ("First 3 minutes / changes lives"). */
+.tagline{margin:0;font-size:clamp(28px,5vw,44px);line-height:1.15;font-weight:700;letter-spacing:-.02em;text-wrap:balance}
+
+.answer-btn{margin-top:clamp(28px,6vh,48px);min-width:min(260px,100%);min-height:56px;padding:14px 32px;border-radius:999px;font-size:18px}
+.answer-btn svg{width:22px;height:22px;fill:currentColor;flex:none}
+/* Once answered it steps back, so the call card is what stands out. */
+.answer-btn[disabled]{background:transparent;color:var(--muted);border-color:var(--line-strong)}
+
+.call-card{max-width:520px;margin:24px auto 0;padding:4px 20px;text-align:left;background:var(--panel);border:1px solid var(--line);border-radius:var(--radius-lg);animation:rise .25s ease-out}
+.call-card:focus{outline:none}
+@keyframes rise{from{opacity:0;transform:translateY(8px)}}
+.group{padding:18px 0}
+.group+.group{border-top:1px solid var(--line)}
+.phone{margin:8px 0 0;font-size:24px;font-weight:500}
+.coords{display:grid;grid-template-columns:auto 1fr;gap:6px 20px;margin:10px 0 0;align-items:baseline}
+.coords dt{color:var(--muted);font-size:14px}
+.coords dd{margin:0;font-size:17px}
+
+/* Three across on any phone; on something narrower they wrap rather than spill out of the card. */
+.drones{display:grid;grid-template-columns:repeat(auto-fit,minmax(76px,1fr));gap:10px;margin-top:12px}
+.drone-btn{background:transparent;color:var(--text);border-color:var(--line-strong);padding:10px 8px;white-space:nowrap}
+.drone-btn:hover{border-color:var(--accent);color:var(--accent)}
+.drone-btn[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.drone-note{margin:12px 0 0;color:var(--muted);font-size:14px;min-height:1.5em}
+
+/* Under the headline: the call in the middle, notes on the right. On a phone the notes go under the call. */
+.call-layout{display:grid;grid-template-columns:minmax(0,1fr) minmax(280px,360px);gap:32px;align-items:start;margin-top:clamp(28px,6vh,48px)}
+.call-layout .answer-btn{margin-top:0}
+.notes{display:flex;flex-direction:column;gap:10px;padding:16px;text-align:left;background:var(--panel);border:1px solid var(--line);border-radius:var(--radius-lg)}
+.notes textarea{width:100%;min-height:clamp(260px,52vh,520px);resize:vertical;padding:12px 14px;font:inherit;font-size:15px;line-height:1.55;color:var(--text);background:var(--bg);border:1px solid var(--line-strong);border-radius:var(--radius)}
+.notes textarea::placeholder{color:var(--faint)}
+.notes textarea:focus{outline:none;border-color:var(--accent)}
+@media (max-width:860px){
+  .call-layout{grid-template-columns:minmax(0,1fr);gap:24px}
+  .notes textarea{min-height:200px;font-size:16px} /* 16px stops iPhones zooming in when you tap it */
+}
+
+/* 5. Responsive */
+@media (max-width:420px){
+  .call-card{padding:2px 16px}
+  .phone{font-size:22px}
+}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{transition:none!important;animation:none!important}}

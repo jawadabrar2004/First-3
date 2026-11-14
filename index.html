@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0b1220">
+  <title>Response Dashboard</title>
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+<main id="main" class="call-page">
+  <h1 class="tagline">First 3 minutes changes lives</h1>
+
+  <div class="call-layout">
+    <div class="call-main">
+      <button class="btn btn-primary answer-btn" id="answer" type="button">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.01 15.38c-1.23 0-2.42-.2-3.53-.56-.35-.12-.74-.03-1.01.24l-1.57 1.97c-2.83-1.35-5.48-3.9-6.89-6.83l1.95-1.66c.27-.28.35-.67.24-1.02-.37-1.11-.56-2.3-.56-3.53 0-.54-.45-.99-.99-.99H4.19C3.65 3 3 3.24 3 3.99 3 13.28 10.73 21 20.01 21c.71 0 .99-.63.99-1.18v-3.45c0-.54-.45-.99-.99-.99z"/></svg>
+        <span id="answer-text">Answer</span>
+      </button>
+
+      <!-- Shown once the call is answered. -->
+      <section class="call-card" id="call" tabindex="-1" aria-label="Call details" hidden>
+        <div class="group">
+          <h2 class="label">Caller phone number</h2>
+          <p class="phone mono" id="caller-phone"></p>
+        </div>
+
+        <div class="group">
+          <h2 class="label">Location</h2>
+          <dl class="coords">
+            <dt>Latitude</dt><dd class="mono" id="lat"></dd>
+            <dt>Longitude</dt><dd class="mono" id="lng"></dd>
+          </dl>
+        </div>
+
+        <div class="group">
+          <h2 class="label" id="h-drone">Choose a drone</h2>
+          <div class="drones" role="group" aria-labelledby="h-drone">
+            <button class="btn drone-btn" type="button" aria-pressed="false" data-drone="1">Drone 1</button>
+            <button class="btn drone-btn" type="button" aria-pressed="false" data-drone="2">Drone 2</button>
+            <button class="btn drone-btn" type="button" aria-pressed="false" data-drone="3">Drone 3</button>
+          </div>
+          <p class="drone-note" id="drone-note" aria-live="polite"></p>
+        </div>
+      </section>
+    </div>
+
+    <!-- Notes the dispatcher types during the call. Beside the call on a computer, under it on a phone. -->
+    <aside class="notes" aria-labelledby="notes-label">
+      <label class="label" id="notes-label" for="notes">Notes</label>
+      <textarea id="notes" placeholder="Type notes during the call" spellcheck="true"></textarea>
+    </aside>
+  </div>
+</main>
+
+<script src="js/call.js"></script>
+</body>
+</html>
