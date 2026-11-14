@@ -35,14 +35,24 @@ PAYLOADS = {
 # ---------------------------------------------------------------------------
 # Locations used by the mock mission
 # ---------------------------------------------------------------------------
-# Incident: University of Hartford, West Hartford, CT
+# Incident: University of Hartford, West Hartford, CT. This is where the
+# person really is; dispatch doesn't know it exactly (see CALLER_LOCATION).
 INCIDENT = {"lat": 41.7985, "lon": -72.7148}
 # Home: a made-up drone base about 1.5 km south-west of the incident
 HOME = {"lat": 41.7905, "lon": -72.7290}
 
+# Where the phone network says the caller is, like a wireless 911 location:
+# a point plus an uncertainty radius. The real incident is somewhere inside
+# that circle (here about 45 m from the reported point). The circle is the
+# "search zone": the cameras and machine vision switch on inside it.
+CALLER_LOCATION = {"lat": 41.79875, "lon": -72.71435}
+SEARCH_RADIUS_M = 75        # uncertainty radius in metres; change it here only
+
 # Flight settings for the simulator
-DEMO_ETA_SECONDS = 10       # DEMO ONLY: the flight to the scene always takes this long.
+DEMO_ETA_SECONDS = 10       # DEMO ONLY: the flight to the search zone always takes this long.
                             # (A real drone would take ~2 minutes for 1.5 km.)
+SEARCH_SPEED_MS = 8         # slower speed while searching inside the zone
+SEARCH_ALTITUDE_M = 40      # height while searching (lower = cameras see more detail)
 CRUISE_ALTITUDE_M = 60      # height while travelling
 ON_SCENE_ALTITUDE_M = 25    # height while hovering over the incident
 CLIMB_RATE_MS = 15          # vertical speed in metres per second (fast, for the demo)
@@ -54,6 +64,7 @@ PAYLOAD_DROP_SECONDS = 3    # how long the winch takes to lower the payload
 PHASE_LABELS = {
     "STANDBY": "Ready at base",
     "EN_ROUTE": "En route to scene",
+    "SEARCHING": "Searching the zone",
     "ON_SCENE": "On scene",
     "RETURNING": "Returning to base",
     "LANDING": "Landing at base",
@@ -80,8 +91,15 @@ def bearing_deg(lat1, lon1, lat2, lon2):
     return (math.degrees(math.atan2(x, y)) + 360) % 360
 
 
+def distance_to_search_zone(lat, lon):
+    """How far a point is from the caller's reported location, and from the zone's edge."""
+    to_caller = distance_m(lat, lon, CALLER_LOCATION["lat"], CALLER_LOCATION["lon"])
+    return to_caller, max(0.0, to_caller - SEARCH_RADIUS_M)
+
+
 class MockDrone:
-    """A pretend drone: waits at base, flies to the incident, hovers, flies home."""
+    """A pretend drone: waits at base, flies to the search zone, searches it,
+    hovers over the incident, flies home."""
 
     def __init__(self):
         self.reset()
@@ -104,9 +122,10 @@ class MockDrone:
         self.payload_type = None       # "epipen", "aed" or "bleed_kit" once dispatched
         self.payload = "armed"         # armed -> dropping -> dropped
         self.payload_timer = 0.0
-        # Speed that makes the trip take exactly DEMO_ETA_SECONDS
-        trip = distance_m(HOME["lat"], HOME["lon"], INCIDENT["lat"], INCIDENT["lon"])
-        self.cruise_speed = trip / DEMO_ETA_SECONDS
+        self.checked_reported_point = False  # search pattern progress (SEARCHING phase)
+        # Speed that makes the trip to the edge of the search zone take DEMO_ETA_SECONDS
+        _, to_zone = distance_to_search_zone(HOME["lat"], HOME["lon"])
+        self.cruise_speed = to_zone / DEMO_ETA_SECONDS
         self._events = []
 
     def dispatch(self, payload_type):
@@ -124,9 +143,22 @@ class MockDrone:
         self.phase_time += dt
 
         if self.phase == "EN_ROUTE":
+            # Head for the caller's reported location until we're inside the search zone
             self._climb_towards(CRUISE_ALTITUDE_M, dt)
-            if self._fly_towards(INCIDENT["lat"], INCIDENT["lon"], dt):
-                self._set_phase("ON_SCENE", "Drone on scene, hovering over the incident")
+            self._fly_towards(CALLER_LOCATION["lat"], CALLER_LOCATION["lon"], dt)
+            _, to_zone = distance_to_search_zone(self.lat, self.lon)
+            if to_zone <= 0:
+                self._set_phase("SEARCHING", "Entering search zone - cameras active")
+
+        elif self.phase == "SEARCHING":
+            # Mock search: slowly check the reported point first, then "find" the
+            # person at the real incident spot (~15 s, so machine vision has time to start)
+            self._climb_towards(SEARCH_ALTITUDE_M, dt)
+            if not self.checked_reported_point:
+                if self._fly_towards(CALLER_LOCATION["lat"], CALLER_LOCATION["lon"], dt, SEARCH_SPEED_MS):
+                    self.checked_reported_point = True
+            elif self._fly_towards(INCIDENT["lat"], INCIDENT["lon"], dt, SEARCH_SPEED_MS):
+                self._set_phase("ON_SCENE", "Person found, hovering over the incident")
 
         elif self.phase == "ON_SCENE":
             self.speed = 0.0
@@ -154,16 +186,16 @@ class MockDrone:
                 self._events.append(f"{PAYLOADS[self.payload_type]} delivered to the ground")
 
         # Battery drains only while flying
-        if self.phase in ("EN_ROUTE", "ON_SCENE", "RETURNING", "LANDING"):
+        if self.phase in ("EN_ROUTE", "SEARCHING", "ON_SCENE", "RETURNING", "LANDING"):
             self.battery = max(0.0, self.battery - 0.08 * dt)
 
         # Safety: low battery forces return to home
-        if self.battery < LOW_BATTERY_PERCENT and self.phase in ("EN_ROUTE", "ON_SCENE"):
+        if self.battery < LOW_BATTERY_PERCENT and self.phase in ("EN_ROUTE", "SEARCHING", "ON_SCENE"):
             self._set_phase("RETURNING", "Low battery, automatic return to base")
 
     def get_telemetry(self):
         """Everything the dispatcher screen needs, as a plain dict (easy to send as JSON)."""
-        to_incident = distance_m(self.lat, self.lon, INCIDENT["lat"], INCIDENT["lon"])
+        _, to_zone = distance_to_search_zone(self.lat, self.lon)
         from_home = distance_m(self.lat, self.lon, HOME["lat"], HOME["lon"])
 
         # Fake radio signal: weaker the further we are from base, plus a little noise
@@ -172,7 +204,7 @@ class MockDrone:
         # ETA (seconds, with decimals so the countdown is smooth) while flying somewhere
         eta = None
         if self.phase == "EN_ROUTE":
-            eta = round(to_incident / self.cruise_speed, 1)
+            eta = round(to_zone / self.cruise_speed, 1)  # time to reach the search zone
         elif self.phase == "RETURNING":
             eta = round(from_home / self.cruise_speed, 1)
 
@@ -235,10 +267,11 @@ class MockDrone:
         else:
             self.altitude -= step
 
-    def _fly_towards(self, lat, lon, dt):
+    def _fly_towards(self, lat, lon, dt, speed=None):
         """Move in a straight line towards (lat, lon). Returns True once there."""
+        speed = speed or self.cruise_speed
         remaining = distance_m(self.lat, self.lon, lat, lon)
-        step = self.cruise_speed * dt
+        step = speed * dt
         if remaining <= step:
             self.lat, self.lon = lat, lon
             self.speed = 0.0
@@ -247,7 +280,7 @@ class MockDrone:
         fraction = step / remaining
         self.lat += (lat - self.lat) * fraction
         self.lon += (lon - self.lon) * fraction
-        self.speed = self.cruise_speed + random.uniform(-0.4, 0.4)
+        self.speed = speed + random.uniform(-0.4, 0.4)
         return False
 
     def _flight_mode(self):
@@ -255,6 +288,7 @@ class MockDrone:
         return {
             "STANDBY": "STANDBY",
             "EN_ROUTE": "GUIDED",
+            "SEARCHING": "GUIDED",
             "ON_SCENE": "LOITER",
             "RETURNING": "RTL",
             "LANDING": "LAND",

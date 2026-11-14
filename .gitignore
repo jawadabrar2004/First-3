@@ -14,3 +14,6 @@ __pycache__/
 
 # Push-to-talk audio saved by the server
 recordings/
+
+# Machine vision output when started by main.py
+machine_vision/monitor.log

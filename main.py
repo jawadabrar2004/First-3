@@ -13,6 +13,9 @@ What it does:
       /api/rth      return to home
       /api/reset    start the demo over
   * reports whether the Raspberry Pi camera server is reachable (/api/camera-status)
+  * works out the search zone (caller's reported location + uncertainty radius)
+    and starts the machine vision when the drone enters it (vision_manager.py):
+      /api/vision/start, /api/vision/stop, /api/vision/status, /api/vision/incidents
 
 Run it with:   python -m uvicorn main:app --reload
 Then open:     http://localhost:8000
@@ -20,11 +23,14 @@ Then open:     http://localhost:8000
 Messages sent to the browser over /ws (all JSON):
   {"type": "snapshot",  ...}  full state: sent on connect and whenever the call changes
   {"type": "telemetry", "data": {...}, "mission_seconds": 42}
+      data includes distance_to_caller, distance_to_zone, in_search_zone, cameras_active
+  {"type": "incident", "incident": {...}}   a machine vision alert (new, or confirmed/dismissed)
   {"type": "transcript", "line": {"t": 12, "speaker": "CALLER", "text": "..."}}
 """
 
 import asyncio
 import os
+import re
 import socket
 import time
 from contextlib import asynccontextmanager
@@ -32,22 +38,40 @@ from datetime import datetime
 from pathlib import Path
 
 from fastapi import FastAPI, File, Form, UploadFile, WebSocket, WebSocketDisconnect
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from drone_interface import PAYLOADS, MockDrone, RealDrone
+from drone_interface import (CALLER_LOCATION, HOME, PAYLOADS, SEARCH_RADIUS_M, MockDrone, RealDrone,
+                             distance_to_search_zone)
 from transcriber import MockTranscriber
+from vision_manager import IncidentLog, VisionManager
 
 BASE_DIR = Path(__file__).parent
 STATIC_DIR = BASE_DIR / "static"
 RECORDINGS_DIR = BASE_DIR / "recordings"
 TICK_SECONDS = 0.25  # how often the simulation updates (4 times per second)
 
-# Raspberry Pi running MediaMTX (the camera server). Keep this the same as
-# PI_HOST in static/config.js. Change it without editing code by setting the
-# environment variable, e.g. PowerShell:  $env:PI_HOST = "192.168.43.120"
-PI_HOST = os.getenv("PI_HOST", "raspberrypi.local")
+
+
+def frontend_setting(name, default):
+    """Read `const NAME = "value";` (or a number) from static/config.js, so the
+    page and the server share one settings file. Returns default if not found."""
+    try:
+        text = (STATIC_DIR / "config.js").read_text(encoding="utf-8")
+    except OSError:
+        return default
+    m = re.search(r'^const\s+' + name + r'\s*=\s*(?:"([^"]*)"|(\d+))\s*;', text, re.MULTILINE)
+    if not m:
+        return default
+    return m.group(1) if m.group(1) is not None else int(m.group(2))
+
+
+# Raspberry Pi running MediaMTX (the camera server). Taken from PI_HOST in
+# static/config.js, so the page and the server always agree. To override it
+# without editing files, set the environment variable, e.g. PowerShell:
+#   $env:PI_HOST = "192.168.43.120"
+PI_HOST = os.getenv("PI_HOST") or frontend_setting("PI_HOST", "raspberrypi.local")
 PI_WEBRTC_PORT = 8889  # MediaMTX WebRTC pages:  http://PI_HOST:8889/cam  and  /ir
 PI_RTSP_PORT = 8554    # MediaMTX RTSP (for computer vision later):  rtsp://PI_HOST:8554/cam  and  /ir
 PI_CHECK_TIMEOUT = 3.0  # seconds; looking up raspberrypi.local on a hotspot can be slow
@@ -57,6 +81,45 @@ PI_CHECK_TIMEOUT = 3.0  # seconds; looking up raspberrypi.local on a hotspot can
 # looked up again after a failed connection, in case the Pi got a new address.
 _pi_ip = None
 _resolve_task = None  # the lookup in progress; it keeps going even if a check times out
+
+# Machine vision (machine_vision/monitor.py), started when the drone enters the search zone.
+#   Pi mode:   reads the Pi's day camera from MediaMTX over RTSP
+#   Mock mode: the browser already uses the laptop webcam, so it reads a video file instead
+VISION_PORT = int(os.getenv("VISION_PORT") or frontend_setting("VISION_PORT", 8100))
+VISION_MOCK_SOURCE = os.getenv("VISION_MOCK_SOURCE") or str(BASE_DIR / "machine_vision" / "test_clip.mp4")
+vision = VisionManager(VISION_PORT)
+incidents = IncidentLog()
+
+
+def video_mode():
+    """'pi' or 'mock': the VIDEO_MODE env var, else the one in static/config.js."""
+    return os.getenv("VIDEO_MODE") or frontend_setting("VIDEO_MODE", "pi")
+
+
+def vision_source():
+    """What monitor.py should watch: (source, is_file)."""
+    if video_mode() == "mock":
+        return VISION_MOCK_SOURCE, True
+    host = _pi_ip or PI_HOST  # the looked-up IP if we have it (faster, avoids IPv6)
+    if ":" in host:
+        host = f"[{host}]"    # IPv6 addresses need brackets in a URL
+    return f"rtsp://{host}:{PI_RTSP_PORT}/cam", False
+
+
+async def start_vision(reason):
+    if vision.active:
+        return True, "Machine vision is already running"
+    source, is_file = vision_source()
+    incidents.new_session()
+    ok, message = vision.start(source, is_file)
+    await add_transcript_line("SYSTEM", f"Machine vision started ({reason})" if ok
+                              else f"Machine vision NOT started: {message}")
+    return ok, message
+
+
+async def stop_vision(reason):
+    if vision.stop():
+        await add_transcript_line("SYSTEM", f"Machine vision stopped ({reason})")
 
 # ---------------------------------------------------------------------------
 # Pick the pieces. Swap these lines to use real hardware / real services.
@@ -72,6 +135,7 @@ class Mission:
         self.answered_at = None  # time the call was answered (None = still ringing)
         self.address = None      # typed in by the dispatcher
         self.transcript = []     # list of {"t", "speaker", "text"}
+        self.zone_entered = False  # has the drone reached the search zone? (cameras + vision on)
 
     def seconds(self):
         """Seconds since the call was answered (0 while ringing)."""
@@ -117,8 +181,14 @@ def snapshot():
             "caller_number": transcriber.caller_number,
             "address": mission.address,
         },
-        "telemetry": drone.get_telemetry(),
+        "mission": {
+            "home": HOME,
+            # Caller's reported location (like wireless 911): a point + uncertainty radius
+            "caller": {**CALLER_LOCATION, "radius_m": SEARCH_RADIUS_M},
+        },
+        "telemetry": telemetry_with_zone(),
         "mission_seconds": mission.seconds(),
+        "incidents": incidents.items,
         "transcript": mission.transcript,
     }
 
@@ -130,9 +200,26 @@ async def add_transcript_line(speaker, text):
     await manager.broadcast({"type": "transcript", "line": line})
 
 
+mission_last_incident_check = [0.0]  # when we last read incidents.jsonl
+
+
+def telemetry_with_zone():
+    """Drone telemetry plus where it is relative to the search zone.
+    Done here (not in the drone class) so it works the same for the real drone."""
+    t = drone.get_telemetry()
+    to_caller, to_zone = distance_to_search_zone(t["lat"], t["lon"])
+    t["distance_to_caller"] = round(to_caller)
+    t["distance_to_zone"] = round(to_zone)            # 0 once inside
+    t["in_search_zone"] = to_caller <= SEARCH_RADIUS_M
+    t["cameras_active"] = mission.zone_entered        # stays on until the next call
+    t["vision_active"] = vision.active
+    return t
+
+
 async def simulation_loop():
     """Runs forever in the background: move the drone, play the call, send updates."""
     last = time.monotonic()
+    mission_last_incident_check[0] = last
     while True:
         await asyncio.sleep(TICK_SECONDS)
         now = time.monotonic()
@@ -140,7 +227,29 @@ async def simulation_loop():
 
         try:
             drone.update(dt)
-            telemetry = drone.get_telemetry()
+            telemetry = telemetry_with_zone()
+
+            # Entering the search zone switches the cameras and machine vision on (once)
+            flying_out = telemetry["phase"] in ("EN_ROUTE", "SEARCHING", "ON_SCENE")
+            if telemetry["in_search_zone"] and flying_out and not mission.zone_entered:
+                mission.zone_entered = True
+                telemetry["cameras_active"] = True
+                await start_vision("drone entered the search zone")
+                telemetry["vision_active"] = vision.active
+            # Heading home (dispatcher or automatic): machine vision off
+            if vision.active and telemetry["phase"] in ("RETURNING", "LANDING", "LANDED"):
+                await stop_vision("drone returning to base")
+                telemetry["vision_active"] = False
+
+            # Keep monitor.py running; pick up new incidents about once a second
+            problem = vision.watchdog()
+            if problem:
+                await add_transcript_line("SYSTEM", problem)
+            if vision.active and now - mission_last_incident_check[0] >= 1.0:
+                mission_last_incident_check[0] = now
+                for item in incidents.refresh(telemetry["lat"], telemetry["lon"]):
+                    await manager.broadcast({"type": "incident", "incident": item})
+                    await add_transcript_line("SYSTEM", f"Machine vision alert: {item['text']}")
 
             # Drone status messages show up in the feed as SYSTEM lines
             for event in drone.pop_events():
@@ -165,6 +274,7 @@ async def lifespan(app):
     task = asyncio.create_task(simulation_loop())
     yield
     task.cancel()
+    vision.stop()  # never leave monitor.py running after the server stops
 
 
 app = FastAPI(title="First 3 Drone Dispatch", lifespan=lifespan)
@@ -236,6 +346,8 @@ async def api_drop():
 @app.post("/api/rth")
 async def api_rth():
     ok, message = drone.return_to_home()
+    if ok:
+        await stop_vision("return to base")
     return {"ok": ok, "message": message}
 
 
@@ -312,13 +424,62 @@ async def api_camera_status():
     }
 
 
+# ---------------------------------------------------------------------------
+# Machine vision
+# ---------------------------------------------------------------------------
+@app.post("/api/vision/start")
+async def api_vision_start():
+    ok, message = await start_vision("started by dispatcher")
+    return {"ok": ok, "message": message, "status": vision.status()}
+
+
+@app.post("/api/vision/stop")
+async def api_vision_stop():
+    await stop_vision("stopped by dispatcher")
+    return {"ok": True, "status": vision.status()}
+
+
+@app.get("/api/vision/status")
+async def api_vision_status():
+    source, _ = vision_source()
+    return {**vision.status(), "mode": video_mode(), "next_source": source, "incidents": len(incidents.items)}
+
+
+@app.get("/api/vision/incidents")
+async def api_vision_incidents():
+    """Incidents from this mission (read from machine_vision/incidents/incidents.jsonl)."""
+    return {"incidents": incidents.items}
+
+
+@app.get("/api/vision/incidents/{image}")
+async def api_vision_incident_image(image: str):
+    path = IncidentLog.image_path(image)
+    if path is None:
+        return Response(status_code=404)
+    return FileResponse(path, media_type="image/jpeg")
+
+
+@app.post("/api/vision/incidents/{incident_id}/{decision}")
+async def api_vision_decide(incident_id: int, decision: str):
+    """The dispatcher confirms or dismisses an alert (the drone never acts on its own)."""
+    if decision not in ("confirm", "dismiss") or not 0 <= incident_id < len(incidents.items):
+        return {"ok": False, "message": "Unknown incident or decision"}
+    item = incidents.items[incident_id]
+    item["decision"] = "confirmed" if decision == "confirm" else "dismissed"
+    await add_transcript_line("SYSTEM", f"Dispatcher {item['decision']} alert: {item['text']}")
+    await manager.broadcast({"type": "incident", "incident": item})
+    return {"ok": True, "incident": item}
+
+
 @app.post("/api/reset")
 async def api_reset():
     """Start the demo over: drone back on the pad, a new call ringing."""
     global mission
+    await stop_vision("demo restarted")
     drone.reset()
     transcriber.reset()
     mission = Mission()
+    incidents.new_session()
     await manager.broadcast(snapshot())
     return {"ok": True}
 

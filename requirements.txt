@@ -4,5 +4,11 @@ uvicorn>=0.32
 websockets>=13          # WebSocket support for uvicorn
 python-multipart>=0.0.12 # lets FastAPI read the push-to-talk audio upload
 
+# Machine vision (machine_vision/monitor.py, started by main.py in the search zone).
+# Large download (PyTorch, ~250 MB on Windows). Same list as machine_vision/requirements.txt.
+ultralytics
+opencv-python
+ncnn      # runs the faster exported model folder, yolo11n-pose_ncnn_model (Pi 5)
+
 # Later, for the real drone (RealDrone in drone_interface.py):
 # pymavlink
