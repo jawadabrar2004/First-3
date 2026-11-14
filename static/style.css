@@ -129,7 +129,9 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:var(--font);fon
 
 /* 8. Map */
 .map{flex:1;min-height:0;background:var(--panel-2)}
-.leaflet-container{font-family:var(--font)}
+.leaflet-container{font-family:var(--font);background:var(--panel-2)}
+/* Turn the light OpenStreetMap tiles into a dark map */
+.leaflet-tile-pane{filter:invert(1) hue-rotate(180deg) brightness(.9) contrast(.9) saturate(.6)}
 .map-pin{border-radius:50%;border:2px solid var(--bg)}
 .map-pin-incident{background:var(--critical);box-shadow:0 0 0 4px var(--critical-tint)}
 .map-pin-home{background:var(--muted);border-radius:3px}

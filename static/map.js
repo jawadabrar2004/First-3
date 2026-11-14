@@ -15,11 +15,11 @@ function setupMap(mission) {
 
   if (!map) {
     map = L.map("map", { zoomControl: true, attributionControl: true });
-    // Dark map tiles from CARTO (free, based on OpenStreetMap)
-    L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
-      maxZoom: 20,
-      subdomains: "abcd",
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
+    // Standard OpenStreetMap tiles (free, no API key). style.css darkens
+    // them with a CSS filter so they match the console theme.
+    L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      maxZoom: 19,
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
     }).addTo(map);
     map.on("dragstart", () => { followDrone = false; });
 
