@@ -12,6 +12,7 @@ What it does:
       /api/talk     push-to-talk audio clip
       /api/rth      return to home
       /api/reset    start the demo over
+  * reports whether the Raspberry Pi camera server is reachable (/api/camera-status)
 
 Run it with:   python -m uvicorn main:app --reload
 Then open:     http://localhost:8000
@@ -41,6 +42,13 @@ BASE_DIR = Path(__file__).parent
 STATIC_DIR = BASE_DIR / "static"
 RECORDINGS_DIR = BASE_DIR / "recordings"
 TICK_SECONDS = 0.25  # how often the simulation updates (4 times per second)
+
+# Raspberry Pi running MediaMTX (the camera server). Keep this the same as
+# PI_HOST in static/config.js. Change it without editing code by setting the
+# environment variable, e.g. PowerShell:  $env:PI_HOST = "192.168.43.120"
+PI_HOST = os.getenv("PI_HOST", "raspberrypi.local")
+PI_WEBRTC_PORT = 8889  # MediaMTX WebRTC pages:  http://PI_HOST:8889/cam  and  /ir
+PI_RTSP_PORT = 8554    # MediaMTX RTSP (for computer vision later):  rtsp://PI_HOST:8554/cam  and  /ir
 
 # ---------------------------------------------------------------------------
 # Pick the pieces. Swap these lines to use real hardware / real services.
@@ -237,6 +245,19 @@ async def api_talk(audio: UploadFile = File(...), seconds: float = Form(0)):
         "SYSTEM", f"Dispatcher talked to the person giving aid ({seconds:.1f} s through drone speaker)"
     )
     return {"ok": True, "file": f"recordings/{filename}", "bytes": len(data)}
+
+
+@app.get("/api/camera-status")
+async def api_camera_status():
+    """Quick check: can we open a TCP connection to the Pi's MediaMTX WebRTC port?"""
+    online = False
+    try:
+        _, writer = await asyncio.wait_for(asyncio.open_connection(PI_HOST, PI_WEBRTC_PORT), timeout=1.0)
+        writer.close()
+        online = True
+    except (OSError, asyncio.TimeoutError):
+        pass  # name not found, connection refused, or too slow = offline
+    return {"online": online, "host": PI_HOST, "port": PI_WEBRTC_PORT}
 
 
 @app.post("/api/reset")
