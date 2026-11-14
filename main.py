@@ -5,16 +5,21 @@ What it does:
   * serves the web page (everything in the static/ folder)
   * runs the mock drone + mock 911 call in the background
   * pushes live updates to the browser over a WebSocket at /ws
-  * handles the dispatcher's buttons: /api/drop, /api/rth, /api/talk
+  * handles the dispatcher's actions:
+      /api/answer   pick up the incoming call
+      /api/dispatch send a drone (address + payload type)
+      /api/drop     drop the payload
+      /api/talk     push-to-talk audio clip
+      /api/rth      return to home
+      /api/reset    start the demo over
 
 Run it with:   python -m uvicorn main:app --reload
 Then open:     http://localhost:8000
 
 Messages sent to the browser over /ws (all JSON):
-  {"type": "snapshot",  ...}  full state, sent when a browser connects or the demo restarts
+  {"type": "snapshot",  ...}  full state: sent on connect and whenever the call changes
   {"type": "telemetry", "data": {...}, "mission_seconds": 42}
   {"type": "transcript", "line": {"t": 12, "speaker": "CALLER", "text": "..."}}
-  {"type": "key_info",  "data": {...}}
 """
 
 import asyncio
@@ -24,12 +29,12 @@ from contextlib import asynccontextmanager
 from datetime import datetime
 from pathlib import Path
 
-from fastapi import FastAPI, File, UploadFile, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, File, Form, UploadFile, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel
 
-from drone_interface import HOME, INCIDENT, MockDrone, RealDrone
-from key_info import KeywordExtractor
+from drone_interface import PAYLOADS, MockDrone, RealDrone
 from transcriber import MockTranscriber
 
 BASE_DIR = Path(__file__).parent
@@ -42,19 +47,21 @@ TICK_SECONDS = 0.25  # how often the simulation updates (4 times per second)
 # ---------------------------------------------------------------------------
 drone = RealDrone() if os.getenv("DRONE_MODE") == "real" else MockDrone()
 transcriber = MockTranscriber()
-extractor = KeywordExtractor()  # later: LLMExtractor()
 
 
 class Mission:
     """Everything we remember about the current call."""
 
     def __init__(self):
-        self.started = time.monotonic()
-        self.transcript = []  # list of {"t", "speaker", "text"}
-        self.key_info = extractor.extract([])
+        self.answered_at = None  # time the call was answered (None = still ringing)
+        self.address = None      # typed in by the dispatcher
+        self.transcript = []     # list of {"t", "speaker", "text"}
 
     def seconds(self):
-        return int(time.monotonic() - self.started)
+        """Seconds since the call was answered (0 while ringing)."""
+        if self.answered_at is None:
+            return 0
+        return int(time.monotonic() - self.answered_at)
 
 
 mission = Mission()
@@ -89,24 +96,22 @@ def snapshot():
     """The full current state, for a browser that just connected."""
     return {
         "type": "snapshot",
-        "mission": {"home": HOME, "incident": INCIDENT},
+        "call": {
+            "answered": mission.answered_at is not None,
+            "caller_number": transcriber.caller_number,
+            "address": mission.address,
+        },
         "telemetry": drone.get_telemetry(),
         "mission_seconds": mission.seconds(),
         "transcript": mission.transcript,
-        "key_info": mission.key_info,
     }
 
 
 async def add_transcript_line(speaker, text):
-    """Store a transcript line, send it out, and refresh the key info if it changed."""
+    """Store a transcript / status line and send it to every browser."""
     line = {"t": mission.seconds(), "speaker": speaker, "text": text}
     mission.transcript.append(line)
     await manager.broadcast({"type": "transcript", "line": line})
-
-    new_info = extractor.extract(mission.transcript)
-    if new_info != mission.key_info:
-        mission.key_info = new_info
-        await manager.broadcast({"type": "key_info", "data": new_info})
 
 
 async def simulation_loop():
@@ -121,12 +126,14 @@ async def simulation_loop():
             drone.update(dt)
             telemetry = drone.get_telemetry()
 
-            # Drone status messages show up in the transcript as SYSTEM lines
+            # Drone status messages show up in the feed as SYSTEM lines
             for event in drone.pop_events():
                 await add_transcript_line("SYSTEM", event)
 
-            for line in transcriber.poll(dt, telemetry):
-                await add_transcript_line(line["speaker"], line["text"])
+            # The caller only talks once the call has been answered
+            if mission.answered_at is not None:
+                for line in transcriber.poll(dt, telemetry):
+                    await add_transcript_line(line["speaker"], line["text"])
 
             await manager.broadcast(
                 {"type": "telemetry", "data": telemetry, "mission_seconds": mission.seconds()}
@@ -169,8 +176,39 @@ async def websocket_endpoint(ws: WebSocket):
 
 
 # ---------------------------------------------------------------------------
-# Dispatcher buttons
+# Dispatcher actions
 # ---------------------------------------------------------------------------
+@app.post("/api/answer")
+async def api_answer():
+    """Pick up the ringing call. The scripted caller starts talking."""
+    if mission.answered_at is None:
+        mission.answered_at = time.monotonic()
+        await manager.broadcast(snapshot())
+    return {"ok": True}
+
+
+class DispatchRequest(BaseModel):
+    address: str
+    payload: str  # "epipen", "aed" or "bleed_kit"
+
+
+@app.post("/api/dispatch")
+async def api_dispatch(req: DispatchRequest):
+    """Send a drone with the chosen payload to the address the dispatcher typed."""
+    address = req.address.strip()
+    if not address:
+        return {"ok": False, "message": "Type the address first"}
+    if req.payload not in PAYLOADS:
+        return {"ok": False, "message": "Unknown payload"}
+
+    ok, message = drone.dispatch(req.payload)
+    if ok:
+        mission.address = address
+        await add_transcript_line("SYSTEM", f"Dispatcher sent the {PAYLOADS[req.payload]} drone to {address}")
+        await manager.broadcast(snapshot())
+    return {"ok": ok, "message": message}
+
+
 @app.post("/api/drop")
 async def api_drop():
     ok, message = drone.drop_payload()
@@ -186,7 +224,7 @@ async def api_rth():
 
 
 @app.post("/api/talk")
-async def api_talk(audio: UploadFile = File(...)):
+async def api_talk(audio: UploadFile = File(...), seconds: float = Form(0)):
     """Push-to-talk: save the recorded clip. Later: play it on the drone's speaker."""
     RECORDINGS_DIR.mkdir(exist_ok=True)
     # The browser usually records webm (Chrome/Firefox) or mp4 (Safari)
@@ -195,13 +233,15 @@ async def api_talk(audio: UploadFile = File(...)):
     data = await audio.read()
     (RECORDINGS_DIR / filename).write_bytes(data)
 
-    await add_transcript_line("SYSTEM", f"Dispatcher voice message sent to drone speaker ({filename})")
+    await add_transcript_line(
+        "SYSTEM", f"Dispatcher talked to the person giving aid ({seconds:.1f} s through drone speaker)"
+    )
     return {"ok": True, "file": f"recordings/{filename}", "bytes": len(data)}
 
 
 @app.post("/api/reset")
 async def api_reset():
-    """Start the demo over: drone back on the pad, call from the beginning."""
+    """Start the demo over: drone back on the pad, a new call ringing."""
     global mission
     drone.reset()
     transcriber.reset()
