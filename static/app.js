@@ -5,7 +5,7 @@
 //   incoming -> call is ringing (Answer button)
 //   call     -> on the call: transcript, address box, drone choices
 //   enroute  -> blurred camera with the ETA countdown
-//   onscene  -> bird's eye camera with telemetry, feed and controls
+//   onscene  -> Feed 1 camera in the middle, telemetry/feed/controls on the sides
 //
 // The server sends JSON messages over a WebSocket (/ws). Each message has
 // a "type", and handleMessage() sends it to the right function below.

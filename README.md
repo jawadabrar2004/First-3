@@ -14,7 +14,7 @@ A full-screen 911 dispatcher console for a big wall display. It walks the dispat
 1. **Incoming call:** press **Answer**.
 2. **On the call:** the live transcript fills the screen. Type the address in the box below it, then pick the drone to send: **EpiPen**, **AED** or **Bleeding control kit**. The drone launches immediately.
 3. **En route:** the camera shows blurred behind a big **ETA** countdown (10 seconds for the demo).
-4. **On scene:** the camera goes sharp, labeled **Bird's eye view**. Telemetry is in the top-left corner, the live call and status feed is on the right, and along the bottom are the payload (type, status, **Drop payload**), **Hold to talk**, and **Return to base**.
+4. **On scene:** the camera sits alone in the middle as **Feed 1**, with nothing covering it. The left column has telemetry, payload details (type, status, location, **Drop payload**) and **Return to base**; the right column has the live call & status feed and **Hold to talk**.
 
 Everything is mocked: the scripted caller is one of three emergencies (allergic reaction, cardiac arrest, severe bleeding), picked at random for each call. Your laptop webcam stands in for the drone camera.
 
@@ -89,7 +89,7 @@ browser  ── POST /api/answer, /api/dispatch, /api/drop, /api/talk, /api/rth 
     static/config.js     VIDEO_SOURCE: where the drone video comes from
     static/app.js        WebSocket connection, picks the screen, ETA countdown, transcript
     static/video.js      Builds the video element for each VIDEO_SOURCE type
-    static/telemetry.js  Telemetry box on the bird's eye view
+    static/telemetry.js  Telemetry panel on the on-scene screen
     static/controls.js   Dispatch, push-to-talk, payload drop, return to base
 
 ---

@@ -1,6 +1,6 @@
 // =====================================================================
-// telemetry.js - fills in the telemetry box in the top-left corner of
-// the bird's eye view (battery, altitude, speed, mode, signal, GPS).
+// telemetry.js - fills in the telemetry panel in the left column of
+// the on-scene screen (battery, altitude, speed, mode, signal, GPS).
 // app.js calls updateTelemetry() every time new data arrives.
 // =====================================================================
 

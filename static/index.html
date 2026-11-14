@@ -20,12 +20,12 @@
     incoming -> call is ringing            (Answer button)
     call     -> on the call                (transcript, address box, drone choices)
     enroute  -> drone flying               (blurred camera + ETA countdown)
-    onscene  -> drone over the incident    (bird's eye camera + overlays)
+    onscene  -> drone over the incident    (Feed 1 camera, panels on the sides)
 -->
 <body data-view="incoming">
 
-<!-- The drone camera sits behind everything, full screen.
-     It's blurred while en route and sharp once on scene. -->
+<!-- The drone camera. Full screen and blurred while en route; once on
+     scene it moves into the middle column (see style.css). -->
 <div class="video-layer" aria-hidden="true">
   <div id="video-stage" class="video-stage"></div>
 </div>
@@ -124,60 +124,79 @@
   </div>
 </section>
 
-<!-- ================= 4. ON SCENE (over the sharp camera) ================= -->
+<!-- ================= 4. ON SCENE =================
+     Three columns. The camera sits in the middle column on its own, so
+     nothing covers it. Everything else is in the side columns.
+       left:   telemetry, payload details, return to base
+       middle: the camera (style.css lines the video up with this box)
+       right:  live call + status feed, hold to talk                     -->
 <section class="screen screen-onscene" aria-label="Drone on scene">
 
-  <!-- Top centre: what this camera is -->
-  <div class="view-label">
-    <span class="view-title"><span class="rec-dot"></span>Bird's eye view</span>
-    <span class="view-address" id="scene-address"></span>
-    <span class="view-phase" id="scene-phase" hidden></span>
-  </div>
-
-  <!-- Top left: telemetry -->
-  <div class="overlay tele-box" aria-label="Telemetry">
-    <div class="tele-row">
-      <span class="label">Battery</span>
-      <span class="tele-value mono"><span id="t-battery">--</span>%</span>
-      <div class="bar"><div class="bar-fill" id="t-battery-bar"></div></div>
-    </div>
-    <div class="tele-row"><span class="label">Altitude</span><span class="tele-value mono"><span id="t-alt">--</span> m</span></div>
-    <div class="tele-row"><span class="label">Speed</span><span class="tele-value mono"><span id="t-speed">--</span> m/s</span></div>
-    <div class="tele-row"><span class="label">Mode</span><span class="tele-value mono" id="t-mode">--</span></div>
-    <div class="tele-row">
-      <span class="label">Signal</span>
-      <span class="tele-value mono"><span id="t-signal">--</span>%
-        <span class="signal-bars" id="t-signal-bars"><i></i><i></i><i></i><i></i></span></span>
-    </div>
-    <div class="tele-row"><span class="label">GPS</span><span class="tele-value tele-gps mono" id="t-gps">--</span></div>
-    <span class="video-source" id="video-source"></span>
-  </div>
-
-  <!-- Right: live call transcript + status updates -->
-  <div class="overlay feed-box">
-    <div class="feed-head">
-      <span class="label"><span class="rec-dot"></span>Live call &amp; status</span>
-    </div>
-    <ol class="transcript" aria-live="polite"></ol>
-  </div>
-
-  <!-- Bottom: payload + talk + return home -->
-  <div class="overlay control-bar">
-    <div class="payload-box">
-      <span class="label">Payload</span>
-      <div class="payload-line">
-        <span class="payload-name" id="payload-name">--</span>
-        <span class="pill pill-warning" id="payload-pill">ARMED</span>
-        <div class="drop-actions">
-          <button class="btn btn-critical btn-big" id="drop-btn" type="button">Drop payload</button>
-          <!-- Shown after the first click, so a drop is never accidental -->
-          <span class="confirm" id="drop-confirm" hidden>
-            <button class="btn btn-critical btn-big" id="drop-yes" type="button">Confirm drop</button>
-            <button class="btn btn-big" id="drop-no" type="button">Cancel</button>
-          </span>
+  <!-- LEFT COLUMN -->
+  <aside class="side side-left">
+    <div class="panel side-panel" aria-label="Telemetry">
+      <div class="panel-head"><h2 class="label">Telemetry</h2></div>
+      <div class="tele-list">
+        <div class="tele-row">
+          <span class="label">Battery</span>
+          <span class="tele-value mono"><span id="t-battery">--</span>%</span>
+          <div class="bar"><div class="bar-fill" id="t-battery-bar"></div></div>
         </div>
+        <div class="tele-row"><span class="label">Altitude</span><span class="tele-value mono"><span id="t-alt">--</span> m</span></div>
+        <div class="tele-row"><span class="label">Speed</span><span class="tele-value mono"><span id="t-speed">--</span> m/s</span></div>
+        <div class="tele-row"><span class="label">Mode</span><span class="tele-value mono" id="t-mode">--</span></div>
+        <div class="tele-row">
+          <span class="label">Signal</span>
+          <span class="tele-value mono"><span id="t-signal">--</span>%
+            <span class="signal-bars" id="t-signal-bars"><i></i><i></i><i></i><i></i></span></span>
+        </div>
+        <div class="tele-row"><span class="label">GPS</span><span class="tele-value tele-gps mono" id="t-gps">--</span></div>
       </div>
-      <p class="hint" id="drop-hint"></p>
+      <span class="video-source" id="video-source"></span>
+    </div>
+
+    <div class="panel side-panel" aria-label="Payload">
+      <div class="panel-head">
+        <h2 class="label">Payload</h2>
+        <span class="pill pill-warning" id="payload-pill">ARMED</span>
+      </div>
+      <div class="payload-body">
+        <div class="payload-name" id="payload-name">--</div>
+        <dl class="payload-facts">
+          <dt>Location</dt><dd id="scene-address">--</dd>
+        </dl>
+        <button class="btn btn-critical btn-big btn-wide" id="drop-btn" type="button">Drop payload</button>
+        <!-- Shown after the first click, so a drop is never accidental -->
+        <div class="confirm" id="drop-confirm" hidden>
+          <button class="btn btn-critical btn-big" id="drop-yes" type="button">Confirm drop</button>
+          <button class="btn btn-big" id="drop-no" type="button">Cancel</button>
+        </div>
+        <p class="hint" id="drop-hint"></p>
+      </div>
+    </div>
+
+    <div class="rth-box">
+      <button class="btn btn-big btn-wide" id="rth-btn" type="button">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 2 12h3v8h6v-6h2v6h6v-8h3z"/></svg>
+        Return to base
+      </button>
+      <p class="hint" id="rth-hint"></p>
+    </div>
+  </aside>
+
+  <!-- MIDDLE: the camera shows through here. Only a small tag in the corner. -->
+  <div class="feed-frame">
+    <span class="feed-tag"><span class="rec-dot"></span>Feed 1</span>
+    <span class="feed-phase" id="scene-phase" hidden></span>
+  </div>
+
+  <!-- RIGHT COLUMN -->
+  <aside class="side side-right">
+    <div class="panel side-panel feed-panel">
+      <div class="panel-head">
+        <h2 class="label"><span class="rec-dot"></span>Live call &amp; status</h2>
+      </div>
+      <ol class="transcript" aria-live="polite"></ol>
     </div>
 
     <div class="talk-box">
@@ -187,16 +206,7 @@
       </button>
       <p class="hint" id="ptt-status">Speaks to the person giving aid through the drone</p>
     </div>
-
-    <div class="rth-box">
-      <button class="btn btn-big" id="rth-btn" type="button">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 2 12h3v8h6v-6h2v6h6v-8h3z"/></svg>
-        Return to base
-      </button>
-      <p class="hint" id="rth-hint"></p>
-    </div>
-  </div>
-
+  </aside>
 </section>
 
 <!-- Our scripts. config.js must load first. -->
