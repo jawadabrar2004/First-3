@@ -39,7 +39,7 @@ It downloads the latest MediaMTX for 64-bit ARM, installs it to `/usr/local/bin`
 From a Windows laptop on the same hotspot (you'll be asked for the Pi's password):
 
 ```powershell
-cd C:SERSJAVIE.VSCODEIFIRST-3     (YOUR COPY OF THE REPO)
+cd First-3          # your copy of this repo
 scp -r pi jpi@172.20.10.14:~/
 ssh -t jpi@172.20.10.14 "cd ~/pi && sudo bash setup_mediamtx.sh"
 ```
