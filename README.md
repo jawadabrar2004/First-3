@@ -103,7 +103,7 @@ API (all on port 8000): `POST /api/vision/start`, `POST /api/vision/stop`, `GET 
 
 ### Raspberry Pi cameras (Day + IR)
 
-The video panel shows the Pi 5's live cameras, streamed by MediaMTX. Setting up the Pi itself is covered in [pi/README.md](pi/README.md).
+The video panel shows the Pi 5's live cameras, streamed by MediaMTX. The same MediaMTX also **records both cameras to the Pi's SD card from every boot**, with or without Wi-Fi, so recording and the live demo run at the same time with nothing to switch. Setting up the Pi, the recordings and how to get them off are covered in [pi/README.md](pi/README.md).
 
 On the on-scene screen both cameras show **side by side**: **DAY CAM** on the left, **IR CAM** on the right (each labeled in its top-right corner). The **CAM** dot in the header is green when the Pi is reachable and red when it isn't. While the Pi is unreachable, both panes show **CAMERA OFFLINE - check Pi / Wi-Fi**, and it reconnects on its own when the Pi comes back (checked every 5 s).
 

@@ -1,8 +1,16 @@
 # MediaMTX config for the drone's Raspberry Pi 5 (installed by setup_mediamtx.sh
 # to /usr/local/etc/mediamtx.yml). Anything not listed here uses MediaMTX's defaults.
 #
+# MediaMTX does two things with each camera AT THE SAME TIME, from boot:
+#   1. Records it to the SD card   (always, Wi-Fi or not)
+#   2. Streams it live             (whenever a laptop on the same Wi-Fi asks)
+# The camera is encoded once and the same video goes to both, so watching live
+# never interrupts or slows the recording.
+#
 #   Day camera:  http://<pi>:8889/cam   rtsp://<pi>:8554/cam   (imx708, Camera Module 3)
 #   IR camera:   http://<pi>:8889/ir    rtsp://<pi>:8554/ir    (imx219, NoIR)
+#   Recordings:  /var/lib/mediamtx/recordings/cam/...  and  .../ir/...
+#                list / download from a laptop: http://<pi>:9996/list?path=cam
 #
 # Check the camera numbers with:  rpicam-hello --list-cameras
 # The Pi 5 has no hardware H.264 encoder, so both use softwareH264. Sizes,
@@ -13,6 +21,24 @@ rtspAddress: :8554     # rtsp://<pi>:8554/cam  and  /ir  (machine vision)
 
 webrtc: yes
 webrtcAddress: :8889   # http://<pi>:8889/cam  and  /ir  (dispatch console)
+
+# Lets a laptop list and download recordings over Wi-Fi (no SSH needed):
+#   http://<pi>:9996/list?path=cam
+#   http://<pi>:9996/get?path=cam&start=<start from the list>&duration=<seconds>
+playback: yes
+playbackAddress: :9996
+
+pathDefaults:
+  # --- Recording to the SD card (applies to both cameras) ---
+  record: yes
+  # One folder per camera; file names are the start time (the Pi's clock:
+  # without Wi-Fi or an RTC battery that clock can be wrong, the video is fine).
+  recordPath: /var/lib/mediamtx/recordings/%path/%Y-%m-%d_%H-%M-%S-%f
+  recordFormat: fmp4          # .mp4 files: play in VLC, any browser, ffmpeg
+  recordPartDuration: 1s      # written to the card every second: a power cut loses at most ~1 s
+  recordSegmentDuration: 5m   # a new file every 5 minutes
+  recordDeleteAfter: 0s       # never delete by age (default is 1 day!). prune_recordings.sh
+                              # deletes the oldest files only when the SD card gets full.
 
 paths:
   # Day camera: imx708 (Camera Module 3) = camera 1

@@ -1,2 +1,4 @@
 # Shell scripts run on the Raspberry Pi: always keep Unix line endings
 *.sh text eol=lf
+# Everything in pi/ is used on the Raspberry Pi: keep Unix line endings
+pi/** text eol=lf
