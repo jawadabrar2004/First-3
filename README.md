@@ -14,7 +14,7 @@ A full-screen 911 dispatcher console for a big wall display. It walks the dispat
 1. **Incoming call:** press **Answer**.
 2. **On the call:** the live transcript fills the screen. Type the address in the box below it, then pick the drone to send: **EpiPen**, **AED** or **Bleeding control kit**. The drone launches immediately.
 3. **En route:** the camera shows blurred behind a big **ETA** countdown (10 seconds for the demo).
-4. **On scene:** the camera fills the screen as **Feed 1** with almost nothing on it: just two small drop-down boxes on its left edge, **Telemetry** and **Live call & status**, closed by default (click to open). **Drop payload** and **Hold to talk** are in a thin bar under the camera, and **Return to base** is in the header next to LIVE.
+4. **On scene:** the camera fills the screen as **Feed 1** with almost nothing on it: just two small drop-down boxes on its left edge, **Telemetry** and **Live call & status**, Telemetry starts open and Live call & status starts closed (click either to open or close it). **Drop payload** and **Hold to talk** are in a thin bar under the camera, and **Return to base** is in the header next to LIVE.
 
 Everything is mocked: the scripted caller is one of three emergencies (allergic reaction, cardiac arrest, severe bleeding), picked at random for each call. Your laptop webcam stands in for the drone camera.
 
