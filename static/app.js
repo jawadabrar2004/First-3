@@ -45,6 +45,7 @@ function onTelemetry(t, missionSeconds) {
   updateHud(t);
   updateTelemetry(t); // telemetry.js
   updateMap(t);       // map.js
+  updateControls(t);  // controls.js
 }
 
 // ---------------------------------------------------------------------
