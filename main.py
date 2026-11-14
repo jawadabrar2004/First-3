@@ -25,6 +25,7 @@ Messages sent to the browser over /ws (all JSON):
 
 import asyncio
 import os
+import socket
 import time
 from contextlib import asynccontextmanager
 from datetime import datetime
@@ -49,6 +50,13 @@ TICK_SECONDS = 0.25  # how often the simulation updates (4 times per second)
 PI_HOST = os.getenv("PI_HOST", "raspberrypi.local")
 PI_WEBRTC_PORT = 8889  # MediaMTX WebRTC pages:  http://PI_HOST:8889/cam  and  /ir
 PI_RTSP_PORT = 8554    # MediaMTX RTSP (for computer vision later):  rtsp://PI_HOST:8554/cam  and  /ir
+PI_CHECK_TIMEOUT = 3.0  # seconds; looking up raspberrypi.local on a hotspot can be slow
+
+# PI_HOST looked up to an IP address once and remembered. Looking the name up
+# on every check was the slow, flaky part (see api_camera_status). It is only
+# looked up again after a failed connection, in case the Pi got a new address.
+_pi_ip = None
+_resolve_task = None  # the lookup in progress; it keeps going even if a check times out
 
 # ---------------------------------------------------------------------------
 # Pick the pieces. Swap these lines to use real hardware / real services.
@@ -247,17 +255,61 @@ async def api_talk(audio: UploadFile = File(...), seconds: float = Form(0)):
     return {"ok": True, "file": f"recordings/{filename}", "bytes": len(data)}
 
 
+async def _resolve_pi_host():
+    """Look up PI_HOST's IP address. IPv4 first: it's the reliable one on phone hotspots."""
+    loop = asyncio.get_running_loop()
+    infos = await loop.getaddrinfo(PI_HOST, PI_WEBRTC_PORT, type=socket.SOCK_STREAM)
+    infos.sort(key=lambda info: info[0] != socket.AF_INET)  # IPv4 addresses first
+    return infos[0][4][0]
+
+
 @app.get("/api/camera-status")
 async def api_camera_status():
-    """Quick check: can we open a TCP connection to the Pi's MediaMTX WebRTC port?"""
-    online = False
-    try:
-        _, writer = await asyncio.wait_for(asyncio.open_connection(PI_HOST, PI_WEBRTC_PORT), timeout=1.0)
+    """
+    Can we open a TCP connection to the Pi's MediaMTX WebRTC port?
+
+    Why it works this way: the first version looked up raspberrypi.local
+    (mDNS) on every call with a 1 s timeout. On a Windows phone hotspot about
+    1 in 4 lookups took longer than that, the check said "offline", and the
+    page dropped and reloaded both video feeds. Now the IP is cached, the
+    timeout is 3 s (a direct connection on the hotspot sometimes takes just over
+    1 s), and the page only goes offline after 3 failed checks in a row.
+    """
+    global _pi_ip
+    started = time.perf_counter()
+    error = None
+
+    async def check():
+        global _pi_ip, _resolve_task
+        if _pi_ip is None:
+            # Looking up raspberrypi.local on Windows can take ~11 s. Run it as its
+            # own task and shield it, so a check that times out doesn't cancel it;
+            # a later check then picks up the finished result.
+            if _resolve_task is None or (_resolve_task.done() and _resolve_task.exception() is not None):
+                _resolve_task = asyncio.create_task(_resolve_pi_host())
+            _pi_ip = await asyncio.shield(_resolve_task)
+        _, writer = await asyncio.open_connection(_pi_ip, PI_WEBRTC_PORT)
         writer.close()
+
+    try:
+        await asyncio.wait_for(check(), timeout=PI_CHECK_TIMEOUT)
         online = True
-    except (OSError, asyncio.TimeoutError):
-        pass  # name not found, connection refused, or too slow = offline
-    return {"online": online, "host": PI_HOST, "port": PI_WEBRTC_PORT}
+    except (OSError, asyncio.TimeoutError) as err:  # name not found, refused, or too slow
+        online = False
+        error = f"{type(err).__name__}: {err}" if str(err) else type(err).__name__  # e.g. WinError code
+    ip_used = _pi_ip
+    if not online and _pi_ip is not None:
+        _pi_ip = None          # connection failed: look the name up again next time,
+        _resolve_task = None   # in case the Pi's address changed
+
+    return {
+        "online": online,
+        "host": PI_HOST,
+        "ip": ip_used,
+        "port": PI_WEBRTC_PORT,
+        "duration_ms": round((time.perf_counter() - started) * 1000),  # for debugging
+        "error": error,
+    }
 
 
 @app.post("/api/reset")

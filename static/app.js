@@ -71,6 +71,7 @@ const STATUS_TEXT = {
 function setView(view, t) {
   const changed = document.body.dataset.view !== view;
   document.body.dataset.view = view;
+  if (changed) camLog("view ->", view); // camera.js (only logs when DEBUG_CAMERA is on)
 
   // Header chip: a fixed text, or the drone's phase once on scene
   document.getElementById("status-chip").textContent = STATUS_TEXT[view] || t.phase_label;

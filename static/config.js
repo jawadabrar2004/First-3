@@ -9,6 +9,10 @@
 // ---------------------------------------------------------------------
 const VIDEO_MODE = "pi";
 
+// Log every camera status check and every video iframe change in the
+// browser console (F12). Leave false normally; turn on to debug the feeds.
+const DEBUG_CAMERA = false;
+
 // ---------------------------------------------------------------------
 // 2. Where the Pi is
 //    Usually "raspberrypi.local". On a phone hotspot that name can resolve
