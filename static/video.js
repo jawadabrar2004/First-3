@@ -141,4 +141,5 @@ function showVideoError(message) {
   document.getElementById("video-stage").replaceChildren(box);
 }
 
-startVideo(VIDEO_SOURCE);
+// In "pi" mode camera.js shows the Raspberry Pi cameras instead
+if (VIDEO_MODE !== "pi") startVideo(VIDEO_SOURCE);

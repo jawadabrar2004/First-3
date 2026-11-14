@@ -25,9 +25,12 @@
 <body data-view="incoming">
 
 <!-- The drone camera. Full screen and blurred while en route; once on
-     scene it fills the space between the header and the bottom bar. -->
-<div class="video-layer" aria-hidden="true">
+     scene it fills the space between the header and the bottom bar.
+     camera.js fills it with the Pi stream (or video.js with the webcam). -->
+<div class="video-layer">
   <div id="video-stage" class="video-stage"></div>
+  <span class="cam-label" id="cam-label">DAY CAM</span>                  <!-- top-right corner -->
+  <div class="cam-message" id="cam-message" role="status" hidden></div>  <!-- connecting / offline -->
 </div>
 
 <!-- ================= HEADER (all screens) ================= -->
@@ -48,6 +51,10 @@
     </div>
     <div class="conn conn-offline" id="conn" role="status">
       <span class="dot"></span><span id="conn-text">OFFLINE</span>
+    </div>
+    <!-- Pi camera status (camera.js): green = online, red = offline -->
+    <div class="conn conn-offline" id="cam-status" role="status">
+      <span class="dot"></span><span id="cam-status-text">CAM</span>
     </div>
     <!-- Only shown once the drone is on scene (see style.css) -->
     <button class="btn btn-small rth-top" id="rth-btn" type="button">
@@ -176,6 +183,11 @@
   <div class="bottom-bar">
     <div class="bar-feed">
       <span class="feed-tag"><span class="rec-dot"></span>Feed 1</span>
+      <!-- Day / IR camera switch (camera.js). Keyboard: I -->
+      <div class="cam-toggle" role="group" aria-label="Camera" title="Switch camera (I)">
+        <button class="cam-btn" type="button" data-cam="day" aria-pressed="true">Day</button>
+        <button class="cam-btn" type="button" data-cam="ir" aria-pressed="false">IR</button>
+      </div>
       <span class="bar-address" id="scene-address"></span>
       <span class="feed-phase" id="scene-phase" hidden></span>
     </div>
@@ -206,6 +218,7 @@
 <!-- Our scripts. config.js must load first. -->
 <script src="/static/config.js"></script>
 <script src="/static/video.js"></script>
+<script src="/static/camera.js"></script>
 <script src="/static/telemetry.js"></script>
 <script src="/static/controls.js"></script>
 <script src="/static/app.js"></script>

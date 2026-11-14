@@ -88,6 +88,7 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:var(--font);fon
 .conn{display:flex;align-items:center;gap:.4rem;font-size:.75rem;font-weight:700;letter-spacing:.06em;padding:.3rem .7rem;border-radius:999px;border:1px solid}
 .conn .dot{width:.5rem;height:.5rem;border-radius:50%;background:currentColor}
 .conn-live{color:var(--ok);background:var(--ok-tint);border-color:rgba(52,211,153,.4)}
+.conn-down{color:var(--critical);background:var(--critical-tint);border-color:rgba(248,113,113,.45)}
 .conn-offline{color:var(--muted);background:rgba(148,163,184,.12);border-color:var(--line-strong)}
 
 /* When over the camera, the header turns see-through */
@@ -117,6 +118,19 @@ body[data-view="onscene"] .video-stage video,body[data-view="onscene"] .video-st
 /* Camera problems: shown in the middle of the screen so they're easy to spot */
 .video-error{max-width:34rem;padding:1.2rem 1.4rem;text-align:center;color:var(--warning);font-size:1.05rem;
   background:var(--panel);border:1px solid rgba(251,191,36,.45);border-radius:var(--radius)}
+/* Pi camera extras (camera.js). Only shown on the on-scene screen,
+   so they never fight with the ETA countdown. */
+.cam-label{position:absolute;top:.75rem;right:.75rem;padding:.15rem .55rem;border-radius:.3rem;background:var(--glass);
+  font-size:.7rem;font-weight:700;letter-spacing:.1em;color:var(--text)}
+.cam-message{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);max-width:30rem;padding:1rem 1.4rem;text-align:center;
+  border-radius:var(--radius);background:var(--panel);border:1px solid var(--line-strong);font-weight:700}
+.cam-message-connecting{color:var(--muted)}
+.cam-message-offline{color:var(--critical);border-color:rgba(248,113,113,.5);letter-spacing:.04em}
+body:not([data-view="onscene"]) .cam-label,
+body:not([data-view="onscene"]) .cam-message{display:none}
+/* Mock mode: the IR switch turns the webcam grey */
+.video-layer.ir-mode .video-stage video{filter:grayscale(1) contrast(1.15)}
+
 /* En route: blurry, dark camera image behind the ETA */
 body[data-view="enroute"] .video-stage{filter:blur(22px) brightness(.45) saturate(.7);transform:scale(1.08)}
 
@@ -208,6 +222,11 @@ body[data-view="enroute"] .video-stage{filter:blur(22px) brightness(.45) saturat
 /* Bottom bar: under the camera, small controls */
 .bottom-bar{position:absolute;left:0;right:0;bottom:0;height:var(--bottombar);display:flex;align-items:center;gap:1.5rem;
   padding:0 1.25rem;background:var(--panel);border-top:1px solid var(--line)}
+/* Day / IR switch in the bottom bar */
+.cam-toggle{display:inline-flex;border:1px solid var(--line-strong);border-radius:999px;overflow:hidden}
+.cam-btn{font:inherit;font-size:.7rem;font-weight:700;letter-spacing:.06em;padding:.2rem .65rem;cursor:pointer;
+  color:var(--muted);background:transparent;border:0}
+.cam-btn[aria-pressed="true"]{color:var(--accent-ink);background:var(--accent)}
 .bar-feed{display:flex;align-items:center;gap:.7rem;min-width:0;flex:1}
 .feed-tag{font-size:.75rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;white-space:nowrap}
 .bar-address{color:var(--muted);font-size:.85rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
