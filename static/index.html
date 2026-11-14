@@ -10,179 +10,199 @@
   <!-- Fonts (same as the rest of the project) -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-
-  <!-- Leaflet = the map library -->
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
 
   <link rel="stylesheet" href="/static/style.css">
 </head>
-<body>
 
-<!-- ================= HEADER ================= -->
+<!--
+  The page has 4 screens. app.js sets body[data-view] to pick which one shows:
+    incoming -> call is ringing            (Answer button)
+    call     -> on the call                (transcript, address box, drone choices)
+    enroute  -> drone flying               (blurred camera + ETA countdown)
+    onscene  -> drone over the incident    (bird's eye camera + overlays)
+-->
+<body data-view="incoming">
+
+<!-- The drone camera sits behind everything, full screen.
+     It's blurred while en route and sharp once on scene. -->
+<div class="video-layer" aria-hidden="true">
+  <div id="video-stage" class="video-stage"></div>
+</div>
+
+<!-- ================= HEADER (all screens) ================= -->
 <header class="topbar">
   <div class="brand">
-    <img src="/static/favicon.svg" alt="" width="28" height="28">
+    <img src="/static/favicon.svg" alt="" width="32" height="32">
     <div>
       <div class="brand-name">First 3</div>
-      <div class="brand-sub">Drone Dispatch Console</div>
+      <div class="brand-sub">Drone Dispatch</div>
     </div>
   </div>
 
   <div class="topbar-right">
-    <div class="phase-chip" id="phase-chip">Waiting for drone…</div>
+    <div class="status-chip" id="status-chip">Incoming call</div>
     <div class="timer">
-      <span class="label">Mission</span>
+      <span class="label">Call</span>
       <span class="mono" id="mission-timer">00:00</span>
     </div>
     <div class="conn conn-offline" id="conn" role="status">
       <span class="dot"></span><span id="conn-text">OFFLINE</span>
     </div>
-    <button class="btn btn-small" id="reset-btn" type="button" title="Restart the mock call and flight">Restart demo</button>
+    <button class="btn btn-small" id="reset-btn" type="button" title="Start a new mock call">Restart demo</button>
   </div>
 </header>
 
-<!-- ================= MAIN CONSOLE ================= -->
-<main class="console">
-
-  <!-- Video: the big panel -->
-  <section class="panel video-panel" aria-label="Drone camera">
-    <div class="panel-head">
-      <h2 class="label">Drone camera</h2>
-      <span class="panel-meta" id="video-source"></span>
+<!-- ================= 1. INCOMING CALL ================= -->
+<section class="screen screen-incoming" aria-label="Incoming call">
+  <div class="incoming">
+    <div class="ring" aria-hidden="true">
+      <svg viewBox="0 0 24 24"><path d="M20.01 15.38c-1.23 0-2.42-.2-3.53-.56-.35-.12-.74-.03-1.01.24l-1.57 1.97c-2.83-1.35-5.48-3.9-6.89-6.83l1.95-1.66c.27-.28.35-.67.24-1.02-.37-1.11-.56-2.3-.56-3.53 0-.54-.45-.99-.99-.99H4.19C3.65 3 3 3.24 3 3.99 3 13.28 10.73 21 20.01 21c.71 0 .99-.63.99-1.18v-3.45c0-.54-.45-.99-.99-.99z"/></svg>
     </div>
-    <div class="video-wrap">
-      <div id="video-stage" class="video-stage"></div>
-      <!-- Heads-up display drawn on top of the video -->
-      <div class="hud" aria-hidden="true">
-        <div class="hud-top">
-          <span class="hud-live"><span class="rec-dot"></span>LIVE</span>
-          <span class="mono" id="hud-phase">--</span>
-        </div>
-        <div class="hud-bottom mono">
-          <span>ALT <b id="hud-alt">--</b> m</span>
-          <span>SPD <b id="hud-spd">--</b> m/s</span>
-          <span>HDG <b id="hud-hdg">--</b>°</span>
-          <span id="hud-pos">--</span>
-        </div>
-      </div>
-    </div>
-  </section>
+    <p class="label">Incoming 911 call</p>
+    <p class="incoming-number mono" id="caller-number">—</p>
+    <button class="btn btn-answer" id="answer-btn" type="button">Answer</button>
+  </div>
+</section>
 
-  <!-- Telemetry: numbers from the drone -->
-  <section class="panel telemetry-panel" aria-label="Telemetry">
-    <div class="panel-head">
-      <h2 class="label">Telemetry</h2>
-      <span class="panel-meta mono" id="tele-eta"></span>
-    </div>
-    <div class="tele-grid">
-      <div class="tile">
-        <span class="label">Battery</span>
-        <span class="tile-value mono"><span id="t-battery">--</span><small>%</small></span>
-        <div class="bar"><div class="bar-fill" id="t-battery-bar"></div></div>
-      </div>
-      <div class="tile">
-        <span class="label">Altitude</span>
-        <span class="tile-value mono"><span id="t-alt">--</span><small>m</small></span>
-      </div>
-      <div class="tile">
-        <span class="label">Speed</span>
-        <span class="tile-value mono"><span id="t-speed">--</span><small>m/s</small></span>
-      </div>
-      <div class="tile">
-        <span class="label">Flight mode</span>
-        <span class="tile-value mono" id="t-mode">--</span>
-      </div>
-      <div class="tile">
-        <span class="label">Signal</span>
-        <span class="tile-value mono"><span id="t-signal">--</span><small>%</small></span>
-        <div class="signal-bars" id="t-signal-bars"><i></i><i></i><i></i><i></i></div>
-      </div>
-      <div class="tile">
-        <span class="label">GPS</span>
-        <span class="tile-value tile-gps mono" id="t-gps">--</span>
-      </div>
-    </div>
-  </section>
-
-  <!-- Map -->
-  <section class="panel map-panel" aria-label="Map">
-    <div class="panel-head">
-      <h2 class="label">Map</h2>
-      <span class="panel-meta mono" id="map-distance"></span>
-    </div>
-    <div id="map" class="map"></div>
-  </section>
-
-  <!-- Right column -->
-  <aside class="side">
-
-    <!-- Key info pulled from the call -->
-    <section class="panel keyinfo-panel" aria-label="Key information">
+<!-- ================= 2. ON THE CALL ================= -->
+<section class="screen screen-call" aria-label="Call">
+  <div class="call-layout">
+    <div class="panel call-transcript-panel">
       <div class="panel-head">
-        <h2 class="label">Key info</h2>
-        <span class="panel-meta">from call transcript</span>
+        <h2 class="label"><span class="rec-dot"></span>Live call transcript</h2>
+        <span class="panel-meta mono" id="call-caller"></span>
       </div>
-      <dl class="keyinfo">
-        <div class="ki-row"><dt>Address</dt><dd id="ki-address" class="ki-empty">Listening…</dd></div>
-        <div class="ki-row"><dt>Emergency</dt><dd id="ki-type" class="ki-empty">Listening…</dd></div>
-        <div class="ki-row"><dt>Patient</dt><dd id="ki-patient" class="ki-empty">Listening…</dd></div>
-        <div class="ki-row"><dt>Callback</dt><dd id="ki-callback" class="ki-empty mono">Listening…</dd></div>
-      </dl>
-    </section>
+      <ol class="transcript transcript-big" aria-live="polite"></ol>
+    </div>
 
-    <!-- Live transcript -->
-    <section class="panel transcript-panel" aria-label="Call transcript">
-      <div class="panel-head">
-        <h2 class="label">Live call transcript</h2>
-        <span class="panel-meta"><span class="rec-dot"></span>911 line</span>
+    <!-- Step 1: type the address. Step 2: pick the drone (sends it right away). -->
+    <form class="panel dispatch-panel" id="dispatch-form" autocomplete="off">
+      <label class="label" for="address">1 · Emergency address</label>
+      <input id="address" class="address-input" type="text" placeholder="Type the address as the caller says it">
+
+      <p class="label step-2">2 · Send a drone</p>
+      <div class="drone-options">
+        <button class="drone-card" type="button" data-payload="epipen" disabled>
+          <span class="drone-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><path d="M19.4 2.6a2 2 0 0 0-2.8 0l-1.3 1.3-1-1-1.4 1.4 1 1-8.2 8.2a2 2 0 0 0 0 2.8l.3.3L3 19.6V21h1.4l3-3 .3.3a2 2 0 0 0 2.8 0l8.2-8.2 1 1 1.4-1.4-1-1 1.3-1.3a2 2 0 0 0 0-2.8zM9.1 16.9 7.1 14.9l1.4-1.4 1 1 1.4-1.4-1-1 1.4-1.4 1 1 1.4-1.4-1-1 1.4-1.4 2 2z"/></svg>
+          </span>
+          <span class="drone-name">EpiPen</span>
+          <span class="drone-for">Severe allergic reaction</span>
+          <span class="drone-go">Dispatch</span>
+        </button>
+        <button class="drone-card" type="button" data-payload="aed" disabled>
+          <span class="drone-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><path d="M12 21.35 10.55 20C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54zM13 6l-4 7h3l-1 5 4-7h-3z"/></svg>
+          </span>
+          <span class="drone-name">AED</span>
+          <span class="drone-for">Cardiac arrest · not breathing</span>
+          <span class="drone-go">Dispatch</span>
+        </button>
+        <button class="drone-card" type="button" data-payload="bleed_kit" disabled>
+          <span class="drone-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><path d="M12 2.5S5 10.2 5 14.5a7 7 0 0 0 14 0C19 10.2 12 2.5 12 2.5zM11 11h2v2.5h2.5v2H13V18h-2v-2.5H8.5v-2H11z"/></svg>
+          </span>
+          <span class="drone-name">Bleeding control kit</span>
+          <span class="drone-for">Severe bleeding · tourniquet</span>
+          <span class="drone-go">Dispatch</span>
+        </button>
       </div>
-      <ol class="transcript" id="transcript" aria-live="polite"></ol>
-    </section>
+      <p class="hint" id="dispatch-hint">Type the address to unlock the drones</p>
+    </form>
+  </div>
+</section>
 
-    <!-- Controls -->
-    <section class="panel controls-panel" aria-label="Drone controls">
-      <div class="panel-head">
-        <h2 class="label">Controls</h2>
-      </div>
+<!-- ================= 3. EN ROUTE (over the blurred camera) ================= -->
+<section class="screen screen-enroute" aria-label="Drone en route">
+  <div class="eta-box">
+    <p class="eta-title" id="eta-title">Drone en route</p>
+    <p class="label">ETA</p>
+    <p class="eta-value mono" id="eta-value">0:10</p>
+    <div class="eta-bar"><div class="eta-bar-fill" id="eta-bar"></div></div>
+    <p class="eta-address" id="eta-address"></p>
+  </div>
+</section>
 
-      <button class="btn ptt" id="ptt-btn" type="button">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 14a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11h-2z"/></svg>
-        <span id="ptt-text">Hold to talk</span>
-      </button>
-      <p class="hint" id="ptt-status">Speaks through the drone's speaker</p>
+<!-- ================= 4. ON SCENE (over the sharp camera) ================= -->
+<section class="screen screen-onscene" aria-label="Drone on scene">
 
-      <div class="control-row">
-        <div>
-          <span class="label">Payload · AED</span>
-          <span class="pill pill-warning" id="payload-pill">ARMED</span>
-        </div>
+  <!-- Top centre: what this camera is -->
+  <div class="view-label">
+    <span class="view-title"><span class="rec-dot"></span>Bird's eye view</span>
+    <span class="view-address" id="scene-address"></span>
+    <span class="view-phase" id="scene-phase" hidden></span>
+  </div>
+
+  <!-- Top left: telemetry -->
+  <div class="overlay tele-box" aria-label="Telemetry">
+    <div class="tele-row">
+      <span class="label">Battery</span>
+      <span class="tele-value mono"><span id="t-battery">--</span>%</span>
+      <div class="bar"><div class="bar-fill" id="t-battery-bar"></div></div>
+    </div>
+    <div class="tele-row"><span class="label">Altitude</span><span class="tele-value mono"><span id="t-alt">--</span> m</span></div>
+    <div class="tele-row"><span class="label">Speed</span><span class="tele-value mono"><span id="t-speed">--</span> m/s</span></div>
+    <div class="tele-row"><span class="label">Mode</span><span class="tele-value mono" id="t-mode">--</span></div>
+    <div class="tele-row">
+      <span class="label">Signal</span>
+      <span class="tele-value mono"><span id="t-signal">--</span>%
+        <span class="signal-bars" id="t-signal-bars"><i></i><i></i><i></i><i></i></span></span>
+    </div>
+    <div class="tele-row"><span class="label">GPS</span><span class="tele-value tele-gps mono" id="t-gps">--</span></div>
+  </div>
+
+  <!-- Right: live call transcript + status updates -->
+  <div class="overlay feed-box">
+    <div class="feed-head">
+      <span class="label"><span class="rec-dot"></span>Live call &amp; status</span>
+    </div>
+    <ol class="transcript" aria-live="polite"></ol>
+  </div>
+
+  <!-- Bottom: payload + talk + return home -->
+  <div class="overlay control-bar">
+    <div class="payload-box">
+      <span class="label">Payload</span>
+      <div class="payload-line">
+        <span class="payload-name" id="payload-name">--</span>
+        <span class="pill pill-warning" id="payload-pill">ARMED</span>
         <div class="drop-actions">
-          <button class="btn btn-critical" id="drop-btn" type="button">Drop payload</button>
+          <button class="btn btn-critical btn-big" id="drop-btn" type="button">Drop payload</button>
           <!-- Shown after the first click, so a drop is never accidental -->
           <span class="confirm" id="drop-confirm" hidden>
-            <button class="btn btn-critical" id="drop-yes" type="button">Confirm drop</button>
-            <button class="btn" id="drop-no" type="button">Cancel</button>
+            <button class="btn btn-critical btn-big" id="drop-yes" type="button">Confirm drop</button>
+            <button class="btn btn-big" id="drop-no" type="button">Cancel</button>
           </span>
         </div>
       </div>
       <p class="hint" id="drop-hint"></p>
+    </div>
 
-      <button class="btn rth" id="rth-btn" type="button">
+    <div class="talk-box">
+      <button class="btn ptt" id="ptt-btn" type="button">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 14a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11h-2z"/></svg>
+        <span id="ptt-text">Hold to talk</span>
+      </button>
+      <p class="hint" id="ptt-status">Speaks to the person giving aid through the drone</p>
+    </div>
+
+    <div class="rth-box">
+      <button class="btn btn-big" id="rth-btn" type="button">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 2 12h3v8h6v-6h2v6h6v-8h3z"/></svg>
-        Return to home
+        Return to base
       </button>
       <p class="hint" id="rth-hint"></p>
-    </section>
-  </aside>
-</main>
+    </div>
+  </div>
 
-<!-- Leaflet library, then our scripts. config.js must load first. -->
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <span class="video-source mono" id="video-source"></span>
+</section>
+
+<!-- Our scripts. config.js must load first. -->
 <script src="/static/config.js"></script>
 <script src="/static/video.js"></script>
 <script src="/static/telemetry.js"></script>
-<script src="/static/map.js"></script>
 <script src="/static/controls.js"></script>
 <script src="/static/app.js"></script>
 </body>

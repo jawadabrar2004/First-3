@@ -1,5 +1,11 @@
 // =====================================================================
-// app.js - connects to the server and keeps the screen up to date.
+// app.js - connects to the server, keeps the screen up to date, and
+// decides which of the 4 screens to show:
+//
+//   incoming -> call is ringing (Answer button)
+//   call     -> on the call: transcript, address box, drone choices
+//   enroute  -> blurred camera with the ETA countdown
+//   onscene  -> bird's eye camera with telemetry, feed and controls
 //
 // The server sends JSON messages over a WebSocket (/ws). Each message has
 // a "type", and handleMessage() sends it to the right function below.
@@ -7,6 +13,7 @@
 // =====================================================================
 
 let socket = null;
+let call = { answered: false, caller_number: null, address: null }; // latest call info
 
 function connect() {
   // ws:// for http pages, wss:// for https pages
@@ -24,28 +31,84 @@ function connect() {
 function handleMessage(msg) {
   if (msg.type === "snapshot") {
     // Full state: rebuild everything from scratch
-    setupMap(msg.mission);
-    document.getElementById("transcript").innerHTML = "";
+    call = msg.call;
+    document.querySelectorAll(".transcript").forEach((list) => { list.innerHTML = ""; });
     msg.transcript.forEach(addTranscriptLine);
-    showKeyInfo(msg.key_info, false);
+    showCallInfo();
     onTelemetry(msg.telemetry, msg.mission_seconds);
   } else if (msg.type === "telemetry") {
     onTelemetry(msg.data, msg.mission_seconds);
   } else if (msg.type === "transcript") {
     addTranscriptLine(msg.line);
-  } else if (msg.type === "key_info") {
-    showKeyInfo(msg.data, true);
   }
 }
 
 // Called a few times per second with fresh drone data
 function onTelemetry(t, missionSeconds) {
   document.getElementById("mission-timer").textContent = formatTime(missionSeconds);
-  document.getElementById("phase-chip").textContent = t.phase_label;
-  updateHud(t);
+  setView(pickView(t), t);
+  updateEta(t);
   updateTelemetry(t); // telemetry.js
-  updateMap(t);       // map.js
   updateControls(t);  // controls.js
+}
+
+// ---------------------------------------------------------------------
+// Which screen to show
+// ---------------------------------------------------------------------
+function pickView(t) {
+  if (!call.answered) return "incoming";
+  if (t.phase === "STANDBY") return "call";
+  if (t.phase === "EN_ROUTE") return "enroute";
+  return "onscene"; // on scene, returning, landing, landed
+}
+
+const STATUS_TEXT = {
+  incoming: "Incoming call",
+  call: "On call",
+  enroute: "Drone en route",
+};
+
+function setView(view, t) {
+  const changed = document.body.dataset.view !== view;
+  document.body.dataset.view = view;
+
+  // Header chip: a fixed text, or the drone's phase once on scene
+  document.getElementById("status-chip").textContent = STATUS_TEXT[view] || t.phase_label;
+
+  // Once the drone leaves the scene, say so under the camera label
+  const phase = document.getElementById("scene-phase");
+  phase.hidden = view !== "onscene" || t.phase === "ON_SCENE";
+  phase.textContent = t.phase_label;
+
+  if (changed && view === "call") document.getElementById("address").focus();
+}
+
+// ---------------------------------------------------------------------
+// Screen 1: incoming call
+// ---------------------------------------------------------------------
+document.getElementById("answer-btn").addEventListener("click", () => {
+  fetch("/api/answer", { method: "POST" });
+});
+
+function showCallInfo() {
+  document.getElementById("caller-number").textContent = call.caller_number || "Unknown number";
+  document.getElementById("call-caller").textContent = call.caller_number ? "Caller " + call.caller_number : "";
+  const address = call.address || "";
+  document.getElementById("eta-address").textContent = address;
+  document.getElementById("scene-address").textContent = address;
+  if (!call.answered) document.getElementById("address").value = ""; // new call
+  refreshDroneCards(); // controls.js
+}
+
+// ---------------------------------------------------------------------
+// Screen 3: ETA countdown over the blurred camera
+// ---------------------------------------------------------------------
+function updateEta(t) {
+  if (t.payload_name) document.getElementById("eta-title").textContent = t.payload_name + " drone en route";
+  if (t.phase !== "EN_ROUTE" || t.eta_seconds == null) return;
+  document.getElementById("eta-value").textContent = formatTime(Math.ceil(t.eta_seconds), true);
+  const done = 1 - t.eta_seconds / t.eta_total;
+  document.getElementById("eta-bar").style.width = Math.max(0, Math.min(1, done)) * 100 + "%";
 }
 
 // ---------------------------------------------------------------------
@@ -62,85 +125,49 @@ document.getElementById("reset-btn").addEventListener("click", () => {
 });
 
 // ---------------------------------------------------------------------
-// Video overlay (HUD)
+// Transcript + status feed (the same lines go to every .transcript list)
 // ---------------------------------------------------------------------
-function updateHud(t) {
-  document.getElementById("hud-phase").textContent = t.phase_label.toUpperCase();
-  document.getElementById("hud-alt").textContent = t.altitude.toFixed(0);
-  document.getElementById("hud-spd").textContent = t.speed.toFixed(1);
-  document.getElementById("hud-hdg").textContent = String(t.heading).padStart(3, "0");
-  document.getElementById("hud-pos").textContent = t.lat.toFixed(5) + ", " + t.lon.toFixed(5);
-}
-
-// ---------------------------------------------------------------------
-// Transcript
-// ---------------------------------------------------------------------
-const SPEAKER_NAMES = { CALLER: "Caller", DISPATCH: "Dispatcher", SYSTEM: "System" };
+const SPEAKER_NAMES = { CALLER: "Caller", DISPATCH: "Dispatcher", SYSTEM: "Status" };
 
 function addTranscriptLine(line) {
-  const list = document.getElementById("transcript");
+  document.querySelectorAll(".transcript").forEach((list) => {
+    // Only auto-scroll if the list is already at the bottom (or hidden),
+    // so we don't yank the view away from someone reading older lines
+    const atBottom = list.clientHeight === 0 || list.scrollHeight - list.scrollTop - list.clientHeight < 60;
 
-  // Only auto-scroll if the dispatcher is already looking at the bottom
-  // (so we don't yank the view away while they read older lines)
-  const atBottom = list.scrollHeight - list.scrollTop - list.clientHeight < 40;
+    const li = document.createElement("li");
+    li.className = "sp-" + line.speaker.toLowerCase();
 
-  const li = document.createElement("li");
-  li.className = "sp-" + line.speaker.toLowerCase();
+    const time = document.createElement("span");
+    time.className = "t-time mono";
+    time.textContent = formatTime(line.t);
 
-  const time = document.createElement("span");
-  time.className = "t-time mono";
-  time.textContent = formatTime(line.t);
+    const body = document.createElement("div");
+    const speaker = document.createElement("span");
+    speaker.className = "t-speaker";
+    speaker.textContent = SPEAKER_NAMES[line.speaker] || line.speaker;
+    const text = document.createElement("span");
+    text.textContent = line.text; // textContent (not innerHTML) so text can't inject HTML
 
-  const body = document.createElement("div");
-  const speaker = document.createElement("span");
-  speaker.className = "t-speaker";
-  speaker.textContent = SPEAKER_NAMES[line.speaker] || line.speaker;
-  const text = document.createElement("span");
-  text.textContent = line.text; // textContent (not innerHTML) so text can't inject HTML
-
-  body.append(speaker, text);
-  li.append(time, body);
-  list.appendChild(li);
-
-  if (atBottom) list.scrollTop = list.scrollHeight;
+    body.append(speaker, text);
+    li.append(time, body);
+    list.appendChild(li);
+    if (atBottom) list.scrollTop = list.scrollHeight;
+  });
 }
 
-// ---------------------------------------------------------------------
-// Key info
-// ---------------------------------------------------------------------
-function showKeyInfo(info, highlightChanges) {
-  setKeyInfo("ki-address", info.address, highlightChanges);
-  setKeyInfo("ki-type", info.emergency_type, highlightChanges);
-  setKeyInfo("ki-callback", info.callback_number, highlightChanges);
-
-  const patient = setKeyInfo("ki-patient", info.patient_status, highlightChanges);
-  if (info.patient_status) {
-    patient.classList.add(info.patient_critical ? "ki-critical" : "ki-ok");
-    if (info.patient_critical) patient.textContent = "⚠ " + info.patient_status;
-  }
-}
-
-function setKeyInfo(id, value, highlight) {
-  const el = document.getElementById(id);
-  const old = el.dataset.value || "";
-  el.dataset.value = value || "";
-  el.textContent = value || "Listening…";
-  el.classList.remove("ki-empty", "ki-critical", "ki-ok", "ki-new");
-  if (!value) el.classList.add("ki-empty");
-  if (highlight && value && value !== old) {
-    void el.offsetWidth; // restart the flash animation
-    el.classList.add("ki-new");
-  }
-  return el;
-}
+// Hidden lists don't scroll, so jump to the newest line when a screen appears
+new MutationObserver(() => {
+  document.querySelectorAll(".transcript").forEach((list) => { list.scrollTop = list.scrollHeight; });
+}).observe(document.body, { attributes: true, attributeFilter: ["data-view"] });
 
 // ---------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------
-function formatTime(totalSeconds) {
+function formatTime(totalSeconds, short) {
   const m = Math.floor(totalSeconds / 60);
   const s = totalSeconds % 60;
-  return String(m).padStart(2, "0") + ":" + String(s).padStart(2, "0");
+  return (short ? String(m) : String(m).padStart(2, "0")) + ":" + String(s).padStart(2, "0");
 }
 
 connect();

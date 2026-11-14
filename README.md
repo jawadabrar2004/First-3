@@ -9,9 +9,14 @@ This repo has two parts:
 
 ## Drone dispatch console
 
-A browser-based 911 dispatcher console: live drone video, telemetry, map, call transcript, key info pulled from the call, and drone controls (push-to-talk, payload drop, return to home).
+A full-screen 911 dispatcher console for a big wall display. It walks the dispatcher through one emergency:
 
-Everything is mocked: the drone flies from a base to the University of Hartford, hovers, and comes home, while a scripted 911 call plays in the transcript. Your laptop webcam stands in for the drone camera.
+1. **Incoming call:** press **Answer**.
+2. **On the call:** the live transcript fills the screen. Type the address in the box below it, then pick the drone to send: **EpiPen**, **AED** or **Bleeding control kit**. The drone launches immediately.
+3. **En route:** the camera shows blurred behind a big **ETA** countdown (10 seconds for the demo).
+4. **On scene:** the camera goes sharp, labeled **Bird's eye view**. Telemetry is in the top-left corner, the live call and status feed is on the right, and along the bottom are the payload (type, status, **Drop payload**), **Hold to talk**, and **Return to base**.
+
+Everything is mocked: the scripted caller is one of three emergencies (allergic reaction, cardiac arrest, severe bleeding), picked at random for each call. Your laptop webcam stands in for the drone camera.
 
 ### Setup (once)
 
@@ -47,14 +52,14 @@ python -m uvicorn main:app --reload
 
 Open **http://localhost:8000**. Allow camera and microphone access when the browser asks. Press **Ctrl+C** to stop.
 
-`--reload` restarts the server whenever you save a Python file. **Restart demo** in the header starts the flight and call over.
+`--reload` restarts the server whenever you save a Python file. **Restart demo** in the header starts a new call. Press **F11** for full screen on the big display.
 
-### Demo walkthrough
+### Demo tips
 
-1. The call starts and the drone takes off. Key Info fills in as the caller gives the address, situation and phone number.
-2. When the drone reaches the scene (about 2 minutes), **Drop payload** turns on. Click it, then **Confirm drop**.
-3. Hold **Hold to talk** (or focus it and hold Space) to record a message; release to send it. Clips are saved in `recordings/`.
-4. **Return to home** sends the drone back to base.
+- The caller waits for you: after describing the emergency they pause until a drone is dispatched, then react when it arrives and when the payload lands.
+- **Drop payload** needs a second click (**Confirm drop**) so it can't happen by accident.
+- Hold **Hold to talk** (or focus it and hold Space) to record a message for the person giving aid; release to send it. Each clip adds a line to the status feed and is saved in `recordings/`.
+- To change the 10-second ETA, edit `DEMO_ETA_SECONDS` in `drone_interface.py`.
 
 ### Swapping in real parts later
 
@@ -63,33 +68,29 @@ Open **http://localhost:8000**. Allow camera and microphone access when the brow
 | Video source | `static/config.js` | Set `VIDEO_SOURCE` to `mjpeg` (Pi / ESP32-CAM), `webrtc` (MediaMTX on the Pi) or `file`, with its `url`. Nothing else changes. |
 | Real drone | `drone_interface.py` | Fill in `RealDrone` with pymavlink (same methods as `MockDrone`), then start with `DRONE_MODE=real`. |
 | Speech-to-text | `transcriber.py` | Write a class with the same `poll()` and `reset()` as `MockTranscriber`, then use it in `main.py`. |
-| Key info with an LLM | `key_info.py` | Fill in `LLMExtractor.extract()`, then use it in `main.py` instead of `KeywordExtractor`. Keep API keys in `.env` (it's git-ignored). |
 
 ### How it fits together
 
 ```
-browser  <── WebSocket /ws (telemetry, transcript, key info) ──  main.py (FastAPI)
-browser  ── POST /api/drop, /api/rth, /api/talk ──────────────>    │
-                                                                   ├─ drone_interface.py  MockDrone / RealDrone
-                                                                   ├─ transcriber.py      MockTranscriber
-                                                                   └─ key_info.py         KeywordExtractor
+browser  <── WebSocket /ws (call state, telemetry, transcript) ──────────  main.py (FastAPI)
+browser  ── POST /api/answer, /api/dispatch, /api/drop, /api/talk, /api/rth ─>  │
+                                                                              ├─ drone_interface.py  MockDrone / RealDrone
+                                                                              └─ transcriber.py      MockTranscriber
 ```
 
 ### Files
 
     main.py              Web server: serves static/, runs the simulation loop, WebSocket + API endpoints
     drone_interface.py   All drone I/O: MockDrone (simulator) and RealDrone (MAVLink, to do)
-    transcriber.py       MockTranscriber: the scripted 911 call
-    key_info.py          Pulls address / emergency / patient status / callback number from the transcript
+    transcriber.py       MockTranscriber: the three scripted 911 calls
     requirements.txt     Python packages
-    static/index.html    The console page
-    static/style.css     Console styles (Midnight Command theme)
+    static/index.html    The console page (all 4 screens)
+    static/style.css     Console styles (Midnight Command theme, scales up on big screens)
     static/config.js     VIDEO_SOURCE: where the drone video comes from
-    static/app.js        WebSocket connection, header, transcript, key info
+    static/app.js        WebSocket connection, picks the screen, ETA countdown, transcript
     static/video.js      Builds the video element for each VIDEO_SOURCE type
-    static/telemetry.js  Telemetry tiles
-    static/map.js        Leaflet map
-    static/controls.js   Push-to-talk, payload drop, return to home
+    static/telemetry.js  Telemetry box on the bird's eye view
+    static/controls.js   Dispatch, push-to-talk, payload drop, return to base
 
 ---
 

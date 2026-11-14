@@ -1,5 +1,6 @@
 // =====================================================================
-// telemetry.js - fills in the telemetry tiles (battery, altitude, ...).
+// telemetry.js - fills in the telemetry box in the top-left corner of
+// the bird's eye view (battery, altitude, speed, mode, signal, GPS).
 // app.js calls updateTelemetry() every time new data arrives.
 // =====================================================================
 
@@ -19,8 +20,4 @@ function updateTelemetry(t) {
   document.getElementById("t-signal").textContent = t.signal;
   const bars = document.querySelectorAll("#t-signal-bars i");
   bars.forEach((b, i) => b.classList.toggle("on", t.signal > i * 25));
-
-  // ETA shows only while the drone is travelling
-  document.getElementById("tele-eta").textContent =
-    t.eta_seconds != null ? "ETA " + formatTime(t.eta_seconds) : "";
 }

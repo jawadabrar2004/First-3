@@ -1,11 +1,50 @@
 // =====================================================================
 // controls.js - the dispatcher's buttons:
+//   * Dispatch: type the address, then pick a drone -> POST /api/dispatch
 //   * Push-to-talk: hold to record the mic, release to send to /api/talk
 //   * Payload drop: click, then confirm, then POST /api/drop
-//   * Return to home: POST /api/rth
+//   * Return to base: POST /api/rth
 // app.js calls updateControls() with each telemetry update so buttons are
 // only enabled when they make sense.
 // =====================================================================
+
+// ---------------------------------------------------------------------
+// Dispatch: address box + the three drone cards
+// ---------------------------------------------------------------------
+const addressInput = document.getElementById("address");
+const droneCards = document.querySelectorAll(".drone-card");
+const dispatchHint = document.getElementById("dispatch-hint");
+
+// The drone cards unlock once something is typed in the address box
+function refreshDroneCards() {
+  const hasAddress = addressInput.value.trim() !== "";
+  droneCards.forEach((card) => { card.disabled = !hasAddress; });
+  dispatchHint.textContent = hasAddress
+    ? "Pick the drone to send. It launches right away."
+    : "Type the address to unlock the drones";
+  dispatchHint.classList.remove("error");
+}
+addressInput.addEventListener("input", refreshDroneCards);
+
+// Pressing Enter in the address box shouldn't reload the page
+document.getElementById("dispatch-form").addEventListener("submit", (e) => e.preventDefault());
+
+droneCards.forEach((card) => {
+  card.addEventListener("click", async () => {
+    droneCards.forEach((c) => { c.disabled = true; }); // no double dispatch
+    dispatchHint.textContent = "Dispatching…";
+    const data = await postJson("/api/dispatch", {
+      address: addressInput.value.trim(),
+      payload: card.dataset.payload,
+    });
+    if (!data.ok) {
+      refreshDroneCards();
+      dispatchHint.textContent = data.message;
+      dispatchHint.classList.add("error");
+    }
+    // On success the server sends new state and app.js switches to the ETA screen
+  });
+});
 
 // ---------------------------------------------------------------------
 // Push-to-talk
@@ -64,13 +103,14 @@ async function sendRecording() {
   const blob = new Blob(chunks, { type: recorder.mimeType || "audio/webm" });
   const form = new FormData();
   form.append("audio", blob, "talk.webm");
+  form.append("seconds", seconds.toFixed(1)); // shown in the status feed
 
   setPttStatus("Sending " + seconds.toFixed(1) + " s clip…");
   try {
     const res = await fetch("/api/talk", { method: "POST", body: form });
     const data = await res.json();
     if (!res.ok) throw new Error(data.detail || res.statusText);
-    setPttStatus("Sent " + seconds.toFixed(1) + " s clip ✓");
+    setPttStatus("Sent to the person giving aid ✓");
   } catch (err) {
     setPttStatus("Send failed: " + err.message, true);
   }
@@ -153,6 +193,7 @@ rthBtn.addEventListener("click", async () => {
 // Enable / disable buttons based on the latest telemetry
 // ---------------------------------------------------------------------
 function updateControls(t) {
+  document.getElementById("payload-name").textContent = t.payload_name || "--";
   const pill = PAYLOAD_PILLS[t.payload];
   payloadPill.textContent = pill.text;
   payloadPill.className = "pill " + pill.cls;
@@ -168,7 +209,7 @@ function updateControls(t) {
   else dropText = "Available when the drone is on scene";
   setHint(dropHint, dropText);
 
-  const flying = ["TAKEOFF", "EN_ROUTE", "ON_SCENE"].includes(t.phase);
+  const flying = ["EN_ROUTE", "ON_SCENE"].includes(t.phase);
   rthBtn.disabled = !flying;
   const returning = t.phase === "RETURNING" || t.phase === "LANDING";
   setHint(rthHint, returning ? "Returning to base" : "");
@@ -188,10 +229,16 @@ function flashMessage(el, text, isError) {
   el.messageUntil = Date.now() + 4000;
 }
 
-// Small helper: POST and read the JSON reply, turning network errors into a message
-async function postJson(url) {
+// Small helper: POST (optionally with a JSON body) and read the JSON reply,
+// turning network errors into a message
+async function postJson(url, body) {
   try {
-    const res = await fetch(url, { method: "POST" });
+    const options = { method: "POST" };
+    if (body) {
+      options.headers = { "Content-Type": "application/json" };
+      options.body = JSON.stringify(body);
+    }
+    const res = await fetch(url, options);
     return await res.json();
   } catch (err) {
     return { ok: false, message: "Server unreachable: " + err.message };
