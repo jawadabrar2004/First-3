@@ -1,0 +1,8 @@
+# Web server
+fastapi>=0.115
+uvicorn>=0.32
+websockets>=13          # WebSocket support for uvicorn
+python-multipart>=0.0.12 # lets FastAPI read the push-to-talk audio upload
+
+# Later, for the real drone (RealDrone in drone_interface.py):
+# pymavlink

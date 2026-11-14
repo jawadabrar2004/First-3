@@ -5,3 +5,12 @@ config.txt
 # Saved data. Never commit this.
 data/
 .DS_Store
+
+# Python
+.venv/
+venv/
+__pycache__/
+*.pyc
+
+# Push-to-talk audio saved by the server
+recordings/
