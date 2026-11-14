@@ -50,7 +50,7 @@ With the venv activated (you'll see `(.venv)` in your prompt):
 python -m uvicorn main:app --reload
 ```
 
-Open **http://localhost:8000**. Allow camera and microphone access when the browser asks. Press **Ctrl+C** to stop.
+Open **http://localhost:8000**. Allow microphone access (and camera access in mock mode) when the browser asks. Press **Ctrl+C** to stop.
 
 `--reload` restarts the server whenever you save a Python file. **Restart demo** in the header starts a new call. Press **F11** for full screen on the big display.
 
@@ -61,11 +61,35 @@ Open **http://localhost:8000**. Allow camera and microphone access when the brow
 - Hold **Hold to talk** (or focus it and hold Space) to record a message for the person giving aid; release to send it. Each clip adds a line to the status feed and is saved in `recordings/`.
 - To change the 10-second ETA, edit `DEMO_ETA_SECONDS` in `drone_interface.py`.
 
+### Raspberry Pi cameras (Day + IR)
+
+The video panel shows the Pi 5's live cameras, streamed by MediaMTX. Setting up the Pi itself is covered in [pi/README.md](pi/README.md).
+
+On the on-scene screen, switch between **Day** and **IR** with the switch in the bottom bar or the **I** key. The current camera shows as **DAY CAM** / **IR CAM** in the top-right corner of the video, and the console remembers your last choice. The **CAM** dot in the header is green when the Pi is reachable and red when it isn't. While the Pi is unreachable, the video shows **CAMERA OFFLINE - check Pi / Wi-Fi**, and it reconnects on its own when the Pi comes back (checked every 5 s).
+
+**Pi or mock video:** in `static/config.js`, set
+
+```js
+const VIDEO_MODE = "pi";    // live Pi cameras
+const VIDEO_MODE = "mock";  // no Pi: laptop webcam (the IR switch turns it grey)
+```
+
+then reload the page.
+
+**Pointing at the Pi (`PI_HOST`):** the default is `raspberrypi.local`. On a phone hotspot that name can resolve to IPv6, where WebRTC may fail (the page loads but the video stays black). Use the Pi's IPv4 address instead (`hostname -I` on the Pi). Change it in **two places** so they match:
+
+1. `static/config.js`: `const PI_HOST = "172.20.10.14";` (the browser uses this for the video), then reload the page.
+2. The server, which uses it for the CAM status dot. Stop the server and start it with the variable set:
+   - Windows (PowerShell): `$env:PI_HOST = "172.20.10.14"; python -m uvicorn main:app --reload`
+   - Mac: `PI_HOST=172.20.10.14 python -m uvicorn main:app --reload`
+
+The RTSP streams for computer vision are `rtsp://PI_HOST:8554/cam` and `rtsp://PI_HOST:8554/ir` (also listed as `PI_STREAMS.dayRtsp` / `irRtsp` in `config.js`).
+
 ### Swapping in real parts later
 
 | To change | Edit | What to do |
 |---|---|---|
-| Video source | `static/config.js` | Set `VIDEO_SOURCE` to `mjpeg` (Pi / ESP32-CAM), `webrtc` (MediaMTX on the Pi) or `file`, with its `url`. Nothing else changes. |
+| Video source | `static/config.js` | `VIDEO_MODE = "pi"` for the Pi cameras (see above). In mock mode, `VIDEO_SOURCE` can be the webcam, `mjpeg`, `webrtc` or a `file`. |
 | Real drone | `drone_interface.py` | Fill in `RealDrone` with pymavlink (same methods as `MockDrone`), then start with `DRONE_MODE=real`. |
 | Speech-to-text | `transcriber.py` | Write a class with the same `poll()` and `reset()` as `MockTranscriber`, then use it in `main.py`. |
 
@@ -74,6 +98,8 @@ Open **http://localhost:8000**. Allow camera and microphone access when the brow
 ```
 browser  <── WebSocket /ws (call state, telemetry, transcript) ──────────  main.py (FastAPI)
 browser  ── POST /api/answer, /api/dispatch, /api/drop, /api/talk, /api/rth ─>  │
+browser  ── GET /api/camera-status (every 5 s) ──────────────────────────>  │  (TCP check to PI_HOST:8889)
+browser  <── video: iframe straight from MediaMTX on the Pi (http://PI_HOST:8889/cam or /ir)
                                                                               ├─ drone_interface.py  MockDrone / RealDrone
                                                                               └─ transcriber.py      MockTranscriber
 ```
@@ -86,11 +112,14 @@ browser  ── POST /api/answer, /api/dispatch, /api/drop, /api/talk, /api/rth 
     requirements.txt     Python packages
     static/index.html    The console page (all 4 screens)
     static/style.css     Console styles (Midnight Command theme, scales up on big screens)
-    static/config.js     VIDEO_SOURCE: where the drone video comes from
+    static/config.js     VIDEO_MODE (pi / mock), PI_HOST and stream URLs, mock VIDEO_SOURCE
+    static/camera.js     Pi cameras: Day/IR switch, I key, connecting/offline messages, CAM status dot
     static/app.js        WebSocket connection, picks the screen, ETA countdown, transcript
     static/video.js      Builds the video element for each VIDEO_SOURCE type
     static/telemetry.js  Telemetry drop-down on the on-scene screen
     static/controls.js   Dispatch, push-to-talk, payload drop, return to base
+    pi/setup_mediamtx.sh Installs MediaMTX + both cameras as a service on the Pi
+    pi/README.md         Pi camera setup and troubleshooting
 
 ---
 
