@@ -1,0 +1,7 @@
+# Made while running. Incident screenshots can show people's faces: never commit them.
+incidents/
+eval_out/
+__pycache__/
+.venv/
+venv/
+*.mp4

@@ -1,0 +1,8 @@
+# Laptop:
+#   pip install -r requirements.txt
+# Pi 5 (so the system camera library, picamera2, stays visible inside the environment):
+#   python3 -m venv --system-site-packages venv && source venv/bin/activate
+#   pip install -r requirements.txt
+ultralytics
+opencv-python
+ncnn      # runs the faster exported model folder, yolo11n-pose_ncnn_model
