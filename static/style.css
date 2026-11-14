@@ -105,7 +105,9 @@ body[data-view="onscene"] .screen-onscene{display:block}
 .video-stage{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;transition:filter .6s,transform .6s}
 .video-stage video,.video-stage img{width:100%;height:100%;object-fit:cover;display:block}
 .video-stage iframe{width:100%;height:100%;border:0}
-.video-error{max-width:30rem;padding:1rem;text-align:center;color:var(--muted)}
+/* Camera problems: shown in the middle of the screen so they're easy to spot */
+.video-error{max-width:34rem;padding:1.2rem 1.4rem;text-align:center;color:var(--warning);font-size:1.05rem;
+  background:var(--panel);border:1px solid rgba(251,191,36,.45);border-radius:var(--radius)}
 /* En route: blurry, dark camera image behind the ETA */
 body[data-view="enroute"] .video-stage{filter:blur(22px) brightness(.45) saturate(.7);transform:scale(1.08)}
 
@@ -195,7 +197,8 @@ body[data-view="enroute"] .video-stage{filter:blur(22px) brightness(.45) saturat
 .ptt.recording{background:var(--critical);border-color:var(--critical);color:var(--accent-ink)}
 .talk-box .hint,.rth-box .hint{text-align:center}
 
-.video-source{position:absolute;left:1rem;bottom:.3rem;font-size:.65rem;color:var(--faint);display:none}
+/* Which camera is in use, at the bottom of the telemetry box */
+.video-source{display:block;margin-top:.4rem;font-size:.7rem;color:var(--faint);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
 /* 9. Transcript (used on the call screen and in the on-scene feed) */
 .transcript{list-style:none;margin:0;padding:.5rem .9rem;overflow-y:auto;flex:1;min-height:0}
