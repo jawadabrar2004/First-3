@@ -96,7 +96,10 @@ function showCallInfo() {
   const address = call.address || "";
   document.getElementById("eta-address").textContent = address;
   document.getElementById("scene-address").textContent = address;
-  if (!call.answered) document.getElementById("address").value = ""; // new call
+  if (!call.answered) {
+    document.getElementById("address").value = ""; // new call
+    stopRecordTimer();                              // controls.js
+  }
   refreshDroneCards(); // controls.js
 }
 

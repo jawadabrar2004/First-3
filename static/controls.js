@@ -1,6 +1,7 @@
 // =====================================================================
 // controls.js - the dispatcher's buttons:
 //   * Dispatch: type the address, then pick a drone -> POST /api/dispatch
+//   * Record: shows a running "REC" timer (UI only, nothing is recorded yet)
 //   * Push-to-talk: hold to record the mic, release to send to /api/talk
 //   * Payload drop: click, then confirm, then POST /api/drop
 //   * Return to base: POST /api/rth
@@ -177,6 +178,45 @@ function closeConfirm() {
   clearTimeout(confirmTimer);
   dropConfirm.hidden = true;
   dropBtn.hidden = false;
+}
+
+// ---------------------------------------------------------------------
+// Record (UI only for now: nothing is actually recorded or saved)
+// Click to start: a "REC 00:00" timer appears next to the button and counts
+// up. Click again (the button now says Stop) to stop and hide the timer.
+// ---------------------------------------------------------------------
+const recBtn = document.getElementById("rec-btn");
+const recText = document.getElementById("rec-text");
+const recTime = document.getElementById("rec-time");
+const recElapsed = document.getElementById("rec-elapsed");
+let recStartedAt = null;  // when recording started (null = not recording)
+let recTimer = null;
+
+recBtn.addEventListener("click", () => {
+  if (recStartedAt === null) startRecordTimer();
+  else stopRecordTimer();
+});
+
+function startRecordTimer() {
+  recStartedAt = Date.now();
+  recElapsed.textContent = "00:00";
+  recTime.hidden = false;
+  recText.textContent = "Stop";
+  recBtn.classList.add("recording");
+  recBtn.setAttribute("aria-pressed", "true");
+  recTimer = setInterval(() => {
+    const seconds = Math.floor((Date.now() - recStartedAt) / 1000);
+    recElapsed.textContent = formatTime(seconds); // app.js
+  }, 250);
+}
+
+function stopRecordTimer() {
+  clearInterval(recTimer);
+  recStartedAt = null;
+  recTime.hidden = true;
+  recText.textContent = "Record";
+  recBtn.classList.remove("recording");
+  recBtn.setAttribute("aria-pressed", "false");
 }
 
 // ---------------------------------------------------------------------

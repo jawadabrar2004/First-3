@@ -240,6 +240,12 @@ body[data-view="enroute"] .video-stage{filter:blur(22px) brightness(.45) saturat
 .payload-name{font-weight:700}
 .confirm{display:inline-flex;gap:.4rem}
 .bottom-bar .hint{margin:0;font-size:.75rem}
+/* Record button + its timer (bottom bar). UI only for now. */
+.bar-rec{display:flex;align-items:center;gap:.6rem;white-space:nowrap}
+.rec-icon{width:.65rem;height:.65rem;border-radius:50%;background:var(--critical)}
+.rec-btn.recording{border-color:var(--critical);color:var(--critical);background:var(--critical-tint)}
+.rec-btn.recording .rec-icon{border-radius:2px}   /* circle = record, square = stop */
+.rec-time{font-size:.85rem;font-weight:700;color:var(--critical)}
 .ptt{padding:.5rem 1.1rem;font-size:.9rem;background:var(--accent-tint);border:1px solid var(--accent);color:var(--accent);
   user-select:none;-webkit-user-select:none;touch-action:none}
 .ptt.recording{background:var(--critical);border-color:var(--critical);color:var(--accent-ink)}

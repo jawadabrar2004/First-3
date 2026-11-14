@@ -213,6 +213,14 @@
       <span class="hint" id="drop-hint"></span>
     </div>
 
+    <!-- Record: UI only for now (nothing is saved). Shows how long it's been "recording". -->
+    <div class="bar-rec">
+      <button class="btn btn-small rec-btn" id="rec-btn" type="button" aria-pressed="false">
+        <span class="rec-icon" aria-hidden="true"></span><span id="rec-text">Record</span>
+      </button>
+      <span class="rec-time mono" id="rec-time" role="timer" hidden><span class="rec-dot"></span>REC <span id="rec-elapsed">00:00</span></span>
+    </div>
+
     <div class="bar-talk">
       <button class="btn ptt" id="ptt-btn" type="button">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 14a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11h-2z"/></svg>
