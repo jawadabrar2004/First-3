@@ -53,7 +53,7 @@ Team Contributions:
 
 | Name | Focus/Built |
 Javier Serrano | UI/UX for Dispatcher, Market research, Demo Orchestrator | 
-Abrar Jawad |    |
+Abrar Jawad |  Machine Vision, CAD, Electronics, Power Management |
 Kyle Burke | Drone mechanics and programming, camera, processor, and battery mounts |
 Biraj Patel| Paylod remote communication device, Test and setup Ras PI 5 setup with InfraRed and regular cam |
 
