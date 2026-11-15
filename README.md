@@ -1,57 +1,109 @@
-# Response Dashboard
+First 4 — Emergency Response Drone + Dispatcher Dashboard
 
-An emergency response dashboard, built the same way as Doorstep: plain HTML, CSS and JavaScript plus a small Node.js server (`server.js`). No build step, no npm install.
+The first 4 minutes change lives. First 4 sends a drone to a 911 caller before ground units arrive. It gives the dispatcher eyes on scene and drops medical supplies to the people who need them. Giving ground units more information to spring into action. 
 
-## The page
+The problem:
 
-1. **First 3 minutes changes lives** at the top.
-2. **Answer** button. Clicking it shows the caller's phone number and, under **Location**, the latitude and longitude.
-3. The responder then chooses **Drone 1**, **Drone 2** or **Drone 3** (one at a time; clicking another switches).
-4. **Notes** on the right (under the call on a phone): a box the dispatcher types into during the call.
+When someone calls 911, the dispatcher only has what the caller can describe, and the first ambulance or police car can be minutes away. In a cardiac arrest, an overdose or a severe bleed, those minutes decide the outcome. We talked with 911 dispatch centers while designing this. The gap they described is information and first aid in the time before responders reach the scene.
 
-The call is demo data for now: `CALL` at the top of `js/call.js`. Notes are not saved yet. Reload the page to start over.
+"Having a live feed as a dispatcher would be great especially since bystanders are in a panic and I can get the info before crew arrives on scene" - Stamford Dispatcher 
 
-## Working on it together
+What it does:
 
-1. Get a copy: `git clone <repo link>`, then `cd` into the folder.
-2. Make a branch for your change: `git checkout -b my-change`.
-3. Run it with `node server.js` and open http://localhost:4000.
-4. Commit, push the branch (`git push -u origin my-change`) and open a pull request on GitHub.
+- Dispatcher dashboard: The dispatcher answers the call, sees the caller's number and location, and assigns the drone with the appropriate payload to the scene.
+- Eyes on scene: The drone streams a live camera feed to the dashboard, with a Day and InfraRed view for night and low visibility.
+- Computer vision: The ground station runs detection on the drone feed to count people on scene and flag someone who is down or needs help.
+- Medical payload drop: A servo release drops a crisis kit (for example a bleeding-control kit or naloxone) at the caller's location.
+- HUD Display: A HUD display for the dispatcher showing a mini-map of the drone and its location, alerts from CV analyzation, live call transcription with status updates, and telemetry data regarding the drone. 
 
-Pull first (`git pull`) before you start, so you're working on the latest version.
+How it works:
 
-## Run it
+ ┌─────────────────────────── DRONE ───────────────────────────┐
+ │  Flight controller (MicoAir) ── servo payload release       │
+ │  Raspberry Pi 5 ── Pi camera (day) + Pi IR camera (night)   │
+ │  ESP32 camera                                  
+ └──────────────┬──────────────────────────────────────────────┘
+                │ video + audio stream            
+                ▼                                  
+ ┌──────────────────────── GROUND STATION ─────────────────────┐
+ │  Computer vision (people count, person down)                │
+ │  Call transcription                                         │
+ │  Dispatcher dashboard (this repo): call, drones, feed, notes│
+ └─────────────────────────────────────────────────────────────┘
 
-- **Mac:** double-click `start-mac.command` (the first time, right-click it and choose **Open**)
-- **Windows:** double-click `start-windows.bat`
-- **From a terminal:** run `node server.js` in this folder
 
-Then open **http://localhost:4000**. It uses port 4000, so it can run at the same time as Doorstep (port 3000). Press **Ctrl+C** to stop it.
+The Pi only streams the camera feeds. All heavy computation (CV and transcription) runs on the ground station, so the drone stays light and its battery lasts longer.
 
-## Theme: Midnight Command
+Hardware:
 
-All colours are tokens at the top of `css/styles.css`. Each one has a single job:
+| Part | Use |
+| 7" deadcat frame | Airframe, keeps the props out of the camera view |
+| 1300KV motors | Lift for a 7" setup carrying a payload |
+| MicoAir flight controller | Flight control |
+| Bluejay 60A 4-in-1 ESC | Motor Control |
+| Taranis X9D Plus 2019  | Radio Link and Telemetry |
+| Raspberry Pi 5 | Onboard streaming computer |
+| Pi camera module + Pi IR camera module | Day and night video |
+| ESP32 camera module | Payload-mounted view |
+| Servo + release mechanism | Payload drop |
 
-| Token | Colour | Job |
-|---|---|---|
-| `--bg` | `#0B1220` | Page background |
-| `--panel` | `#152238` | Panels |
-| `--text` | `#F1F5F9` | Main text |
-| `--muted` | `#94A3B8` | Secondary info; offline / unknown (always with a label) |
-| `--accent` | `#22D3EE` | Selected item, active navigation, primary controls |
-| `--critical` | `#F87171` | Critical alerts only |
-| `--warning` | `#FBBF24` | Warnings, needs review |
-| `--ok` | `#34D399` | Normal, available |
 
-Rules that keep it readable:
-- Status colours always come with a word, and Critical also gets an icon. Never colour alone.
-- Timers, coordinates and counts use the monospace font (`.mono`), so changing numbers don't shift.
-- Thin borders, 6–10 px corners, no flashing or glowing effects.
 
-## Structure
-    index.html          The call page (first page): Answer, call details, drones, notes
-    server.js           Serves the site on port 4000
-    css/styles.css      Theme tokens and the call page styles
-    js/call.js          Answer button, caller details, drone choice (demo call data at the top)
-    assets/favicon.svg  Tab icon
-    pages/              Further pages go here
+Team Contributions:
+
+| Name | Focus/Built |
+Javier Serrano | UI/UX for Dispatcher, Market research, Demo Orchestrator | 
+Abrar Jawad |    |
+Kyle Burke | Drone mechanics and programming, camera, processor, and battery mounts |
+Biraj Patel| Paylod remote communication device, Test and setup Ras PI 5 setup with InfraRed and regular cam |
+
+
+What we built vs. what we used:
+
+Everything here was built during the hackathon. We used these open-source projects and libraries and give them full credit:
+
+| Ultralytics YOLO11 (`yolo11n-pose` model) | Person and pose detection on the drone's day camera feed. We integrated it into the dashboard UI/UX we designed. | AGPL-3.0 | https://github.com/ultralytics/ultralytics |
+| PyTorch | Runs the YOLO model (installed with Ultralytics) | BSD-3-Clause | https://github.com/pytorch/pytorch |
+| NCNN | Runs the exported YOLO model faster on the Raspberry Pi 5 | BSD-3-Clause | https://github.com/Tencent/ncnn |
+| OpenCV (`opencv-python`) | Reads the camera streams and draws the detection boxes | Apache-2.0 (OpenCV), MIT (Python package) | https://github.com/opencv/opencv |
+| FFmpeg | Video decoding inside OpenCV (RTSP stream from the Pi) | LGPL-2.1+ | https://ffmpeg.org |
+| NumPy | Image and number crunching for the CV pipeline | BSD-3-Clause | https://github.com/numpy/numpy |
+|ArduPilot| Flight control firmware |
+| MediaMTX | Streams the Pi's day and IR cameras to the dashboard (WebRTC + RTSP) and records them | MIT | https://github.com/bluenviron/mediamtx |
+| rpicam-apps | Captures video from the Pi camera modules | BSD-2-Clause | https://github.com/raspberrypi/rpicam-apps |
+| libcamera | Camera driver stack on the Raspberry Pi | LGPL-2.1+ | https://libcamera.org |
+| Picamera2 | Python access to the Pi camera for machine vision on the Pi | BSD-2-Clause | https://github.com/raspberrypi/picamera2 |
+| Python | Language the dashboard server and machine vision run on | PSF License | https://www.python.org |
+| FastAPI | Dashboard server: web page, live updates, dispatcher actions | MIT | https://github.com/fastapi/fastapi |
+| Starlette | Web framework underneath FastAPI | BSD-3-Clause | https://github.com/encode/starlette |
+| Pydantic | Checks the data sent to the dashboard server | MIT | https://github.com/pydantic/pydantic |
+| Uvicorn | Runs the dashboard server | BSD-3-Clause | https://github.com/encode/uvicorn |
+| websockets | Live WebSocket connection between the server and the dashboard | BSD-3-Clause | https://github.com/python-websockets/websockets |
+| python-multipart | Lets the server receive audio uploads | Apache-2.0 | https://github.com/Kludex/python-multipart |
+| Node.js | Serves the separate call page | MIT | https://nodejs.org |
+| Leaflet | Search-zone minimap and on-scene map | BSD-2-Clause | https://github.com/Leaflet/Leaflet |
+| OpenStreetMap | Map tiles and map data | ODbL (data) | https://www.openstreetmap.org/copyright |
+| Public Sans | Dashboard font | SIL OFL 1.1 | https://github.com/uswds/public-sans |
+| JetBrains Mono | Dashboard font for numbers and telemetry | SIL OFL 1.1 | https://github.com/JetBrains/JetBrainsMono |
+
+Our own work: the drone build and payload drop mechanism, the dispatcher dashboard (UI/UX design and code), connecting the Pi camera streams to the ground station, and wiring the CV output and transcription into the dispatcher's view.
+
+Run the dashboard:
+
+You need Node.js 18 or newer. There's no `npm install`.
+
+- Mac: double-click `start-mac.command` (the first time, right-click it and choose Open)
+- Windows: double-click `start-windows.bat`
+- Terminal: `node server.js`
+
+The start scripts open http://localhost:4000 in your browser for you; from the terminal, open it yourself. Press Ctrl+C (or close the window) to stop.
+
+Right now the call is demo data (`CALL` at the top of `js/call.js`), and notes aren't saved. Reload the page to start over.
+
+
+What's next
+
+- Live call data from a real CAD/911 system instead of demo data
+- GPS-based auto-dispatch of the nearest drone to the caller's location
+- Testing the payload drop with dispatch partners
+
