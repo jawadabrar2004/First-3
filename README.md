@@ -1,135 +1,109 @@
-# First 3 — Emergency Response Drone + Dispatcher Dashboard
+First 4 — Emergency Response Drone + Dispatcher Dashboard
 
-> **The first 3 minutes change lives.** First 3 sends a drone to a 911 caller before ground units arrive. It gives the dispatcher eyes and a voice on scene and drops medical supplies to the people who need them.
+The first 4 minutes change lives. First 4 sends a drone to a 911 caller before ground units arrive. It gives the dispatcher eyes on scene and drops medical supplies to the people who need them. Giving ground units more information to spring into action. 
 
-<!-- TODO: add a photo of the drone and a screenshot of the dispatcher dashboard here -->
-<!-- ![Drone](assets/drone.jpg) ![Dashboard](assets/dashboard.png) -->
-
-## The problem
+The problem:
 
 When someone calls 911, the dispatcher only has what the caller can describe, and the first ambulance or police car can be minutes away. In a cardiac arrest, an overdose or a severe bleed, those minutes decide the outcome. We talked with 911 dispatch centers while designing this. The gap they described is information and first aid in the time before responders reach the scene.
 
-## What it does
+"Having a live feed as a dispatcher would be great especially since bystanders are in a panic and I can get the info before crew arrives on scene" - Stamford Dispatcher 
 
-- **Dispatcher dashboard.** The dispatcher answers the call, sees the caller's number and location, and assigns one of three drones to the scene.
-- **Eyes on scene.** The drone streams a live camera feed to the dashboard, with a **Day / IR toggle** for night and low visibility.
-- **Computer vision.** The ground station runs detection on the drone feed to count people on scene and flag someone who is down or needs help.
-- **Voice on scene.** The dispatcher talks to people at the scene through a speaker on the drone, for example to coach CPR or bleeding control.
-- **Medical payload drop.** A servo release drops a crisis kit (for example a bleeding-control kit or naloxone) at the caller's location.
-- **AI call transcription.** The 911 call is transcribed live on the dashboard, so the dispatcher can track the details without retyping them.
-- **Notes.** A notes panel for the dispatcher during the call.
+What it does:
 
-## How it works
+- Dispatcher dashboard: The dispatcher answers the call, sees the caller's number and location, and assigns the drone with the appropriate payload to the scene.
+- Eyes on scene: The drone streams a live camera feed to the dashboard, with a Day and InfraRed view for night and low visibility.
+- Computer vision: The ground station runs detection on the drone feed to count people on scene and flag someone who is down or needs help.
+- Medical payload drop: A servo release drops a crisis kit (for example a bleeding-control kit or naloxone) at the caller's location.
+- HUD Display: A HUD display for the dispatcher showing a mini-map of the drone and its location, alerts from CV analyzation, live call transcription with status updates, and telemetry data regarding the drone. 
 
-```
+How it works:
+
  ┌─────────────────────────── DRONE ───────────────────────────┐
  │  Flight controller (MicoAir) ── servo payload release       │
  │  Raspberry Pi 5 ── Pi camera (day) + Pi IR camera (night)   │
- │  ESP32 camera + mic on the payload       Speaker            │
- └──────────────┬──────────────────────────────────▲───────────┘
-                │ video + audio stream             │ dispatcher voice
-                ▼                                  │
- ┌──────────────────────── GROUND STATION ─────────┴───────────┐
+ │  ESP32 camera                                  
+ └──────────────┬──────────────────────────────────────────────┘
+                │ video + audio stream            
+                ▼                                  
+ ┌──────────────────────── GROUND STATION ─────────────────────┐
  │  Computer vision (people count, person down)                │
  │  Call transcription                                         │
  │  Dispatcher dashboard (this repo): call, drones, feed, notes│
  └─────────────────────────────────────────────────────────────┘
-```
 
-The Pi only streams the camera feeds. **All heavy computation (CV and transcription) runs on the ground station**, so the drone stays light and its battery lasts longer.
 
-## Hardware
+The Pi only streams the camera feeds. All heavy computation (CV and transcription) runs on the ground station, so the drone stays light and its battery lasts longer.
+
+Hardware:
 
 | Part | Use |
-|---|---|
 | 7" deadcat frame | Airframe, keeps the props out of the camera view |
 | 1300KV motors | Lift for a 7" setup carrying a payload |
 | MicoAir flight controller | Flight control |
+| Bluejay 60A 4-in-1 ESC | Motor Control |
+| Taranis X9D Plus 2019  | Radio Link and Telemetry |
 | Raspberry Pi 5 | Onboard streaming computer |
 | Pi camera module + Pi IR camera module | Day and night video |
-| ESP32 camera module + microphone | Payload-mounted view and audio |
+| ESP32 camera module | Payload-mounted view |
 | Servo + release mechanism | Payload drop |
-| Speaker | Dispatcher voice on scene |
-<!-- TODO: add battery, ESCs, props, radio/telemetry link and anything else on the build -->
 
-## Team
 
-We're a hardware-focused team: half of us built the drone and half built the software.
 
-| Name | Focus | Built |
-|---|---|---|
-| <!-- TODO --> | Hardware | <!-- e.g. airframe, wiring, payload drop --> |
-| <!-- TODO --> | Hardware | <!-- e.g. flight controller setup, Pi + cameras --> |
-| <!-- TODO --> | Software | <!-- e.g. dispatcher dashboard UI/UX, CV integration --> |
-| <!-- TODO --> | Software | <!-- e.g. streaming, transcription --> |
+Team Contributions:
 
-## What we built vs. what we used
+| Name | Focus/Built |
+Javier Serrano | UI/UX for Dispatcher, Market research, Demo Orchestrator | 
+Abrar Jawad |    |
+Kyle Burke | Drone mechanics and programming, camera, processor, and battery mounts |
+Biraj Patel| Paylod remote communication device, Test and setup Ras PI 5 setup with InfraRed and regular cam |
 
-Everything here was built during the hackathon unless it's listed below. We used these open-source projects and libraries and give them full credit:
 
-| Project | What it does for us | License | Link |
-|---|---|---|---|
-| <!-- TODO: CV project name --> | Person detection on the drone feed. We integrated it into the dashboard UI/UX we designed. | <!-- TODO --> | <!-- TODO: github link --> |
-| <!-- TODO: flight firmware, e.g. ArduPilot / PX4 / Betaflight --> | Flight control firmware | <!-- TODO --> | <!-- TODO --> |
-| <!-- TODO: transcription model/API --> | 911 call transcription | <!-- TODO --> | <!-- TODO --> |
-| Node.js | Dashboard server | MIT | https://nodejs.org |
+What we built vs. what we used:
 
-**Our own work:** the drone build and payload drop mechanism, the dispatcher dashboard (UI/UX design and code), connecting the Pi camera streams to the ground station, and wiring the CV output and transcription into the dispatcher's view.
+Everything here was built during the hackathon. We used these open-source projects and libraries and give them full credit:
 
-## Run the dashboard
+| Ultralytics YOLO11 (`yolo11n-pose` model) | Person and pose detection on the drone's day camera feed. We integrated it into the dashboard UI/UX we designed. | AGPL-3.0 | https://github.com/ultralytics/ultralytics |
+| PyTorch | Runs the YOLO model (installed with Ultralytics) | BSD-3-Clause | https://github.com/pytorch/pytorch |
+| NCNN | Runs the exported YOLO model faster on the Raspberry Pi 5 | BSD-3-Clause | https://github.com/Tencent/ncnn |
+| OpenCV (`opencv-python`) | Reads the camera streams and draws the detection boxes | Apache-2.0 (OpenCV), MIT (Python package) | https://github.com/opencv/opencv |
+| FFmpeg | Video decoding inside OpenCV (RTSP stream from the Pi) | LGPL-2.1+ | https://ffmpeg.org |
+| NumPy | Image and number crunching for the CV pipeline | BSD-3-Clause | https://github.com/numpy/numpy |
+|ArduPilot| Flight control firmware |
+| MediaMTX | Streams the Pi's day and IR cameras to the dashboard (WebRTC + RTSP) and records them | MIT | https://github.com/bluenviron/mediamtx |
+| rpicam-apps | Captures video from the Pi camera modules | BSD-2-Clause | https://github.com/raspberrypi/rpicam-apps |
+| libcamera | Camera driver stack on the Raspberry Pi | LGPL-2.1+ | https://libcamera.org |
+| Picamera2 | Python access to the Pi camera for machine vision on the Pi | BSD-2-Clause | https://github.com/raspberrypi/picamera2 |
+| Python | Language the dashboard server and machine vision run on | PSF License | https://www.python.org |
+| FastAPI | Dashboard server: web page, live updates, dispatcher actions | MIT | https://github.com/fastapi/fastapi |
+| Starlette | Web framework underneath FastAPI | BSD-3-Clause | https://github.com/encode/starlette |
+| Pydantic | Checks the data sent to the dashboard server | MIT | https://github.com/pydantic/pydantic |
+| Uvicorn | Runs the dashboard server | BSD-3-Clause | https://github.com/encode/uvicorn |
+| websockets | Live WebSocket connection between the server and the dashboard | BSD-3-Clause | https://github.com/python-websockets/websockets |
+| python-multipart | Lets the server receive audio uploads | Apache-2.0 | https://github.com/Kludex/python-multipart |
+| Node.js | Serves the separate call page | MIT | https://nodejs.org |
+| Leaflet | Search-zone minimap and on-scene map | BSD-2-Clause | https://github.com/Leaflet/Leaflet |
+| OpenStreetMap | Map tiles and map data | ODbL (data) | https://www.openstreetmap.org/copyright |
+| Public Sans | Dashboard font | SIL OFL 1.1 | https://github.com/uswds/public-sans |
+| JetBrains Mono | Dashboard font for numbers and telemetry | SIL OFL 1.1 | https://github.com/JetBrains/JetBrainsMono |
+
+Our own work: the drone build and payload drop mechanism, the dispatcher dashboard (UI/UX design and code), connecting the Pi camera streams to the ground station, and wiring the CV output and transcription into the dispatcher's view.
+
+Run the dashboard:
 
 You need Node.js 18 or newer. There's no `npm install`.
 
-- **Mac:** double-click `start-mac.command` (the first time, right-click it and choose **Open**)
-- **Windows:** double-click `start-windows.bat`
-- **Terminal:** `node server.js`
+- Mac: double-click `start-mac.command` (the first time, right-click it and choose Open)
+- Windows: double-click `start-windows.bat`
+- Terminal: `node server.js`
 
-Then open **http://localhost:4000**. Press **Ctrl+C** to stop.
+The start scripts open http://localhost:4000 in your browser for you; from the terminal, open it yourself. Press Ctrl+C (or close the window) to stop.
 
 Right now the call is demo data (`CALL` at the top of `js/call.js`), and notes aren't saved. Reload the page to start over.
 
-## What's next
+
+What's next
 
 - Live call data from a real CAD/911 system instead of demo data
 - GPS-based auto-dispatch of the nearest drone to the caller's location
-- Two-way audio over a long-range link
 - Testing the payload drop with dispatch partners
 
----
-
-## For the team: development notes
-
-### Working together
-
-1. `git pull` first, so you're on the latest version.
-2. Make a branch: `git checkout -b my-change`.
-3. Run `node server.js` and open http://localhost:4000.
-4. Commit, push (`git push -u origin my-change`) and open a pull request.
-
-### Theme: Midnight Command
-
-All colours are tokens at the top of `css/styles.css`. Each one has a single job:
-
-| Token | Colour | Job |
-|---|---|---|
-| `--bg` | `#0B1220` | Page background |
-| `--panel` | `#152238` | Panels |
-| `--text` | `#F1F5F9` | Main text |
-| `--muted` | `#94A3B8` | Secondary info; offline / unknown (always with a label) |
-| `--accent` | `#22D3EE` | Selected item, active navigation, primary controls |
-| `--critical` | `#F87171` | Critical alerts only |
-| `--warning` | `#FBBF24` | Warnings, needs review |
-| `--ok` | `#34D399` | Normal, available |
-
-- Status colours always come with a word, and Critical also gets an icon. Never colour alone.
-- Timers, coordinates and counts use the monospace font (`.mono`), so changing numbers don't shift.
-- Thin borders, 6–10 px corners, no flashing or glowing effects.
-
-### Structure
-
-    index.html          The call page: Answer, call details, drones, notes
-    server.js           Serves the site on port 4000
-    css/styles.css      Theme tokens and page styles
-    js/call.js          Answer button, caller details, drone choice (demo data at the top)
-    assets/             Icons and images
-    pages/              Further pages go here
